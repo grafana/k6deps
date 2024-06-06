@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -28,6 +29,9 @@ type options struct {
 	output string
 }
 
+//go:embed help.md
+var help string
+
 // New creates new cobra command for deps command.
 func New() *cobra.Command {
 	opts := new(options)
@@ -37,7 +41,7 @@ func New() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deps [flags] [script-file]",
 		Short: "Extension dependency detection for k6.",
-		Long:  "Analyze the k6 test script and extract the extensions that the script depends on.",
+		Long:  help,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			if len(args) > 0 {

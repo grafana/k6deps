@@ -7,7 +7,7 @@
 ![GitHub Downloads](https://img.shields.io/github/downloads/grafana/k6deps/total)
 -->
 
-# k6deps
+<h1 name="title">k6deps</h1>
 
 **Dependency analysis for k6 tests**
 
@@ -15,40 +15,7 @@ The goal of k6deps is to extract dependencies from k6 test scripts. For this pur
 
 k6deps is primarily used as a go library for [k6](https://github.com/grafana/k6) and [xk6](https://github.com/grafana/xk6). In addition, it also contains a command-line tool, which is suitable for listing the dependencies of k6 test scripts.
 
-The command line tool can be integrated into other command line tools (for example k6, xk6) as a subcommand. For this purpose, the library also contains the functionality of the command line tool as a factrory function that returns [cobra.Command](https://pkg.go.dev/github.com/spf13/cobra#Command).
-
-## How It Works
-
-The first step is to collect the import paths used by the k6 test script. This is followed by the normalization of the import paths. Those import paths that do not refer to k6 extensions after normalization are traversed recursively.
-
-### Import path normalization
-
-For various reasons, it may be necessary to change the import path, so the normalization process may overwrite the original import path. For example, import path as URL can optionally contain version constraints in the hash part of the URL. This is removed by the normalization process.
-
-The normalized import path is used for recursive traversal of modules, if the normalization result does not refer to k6 extension.
-
-As a side effect of normalization, the following information will be available:
-
-- kind (JavaScript module, golang extension), based on the pattern matching of the module name
-- version constraints (optional), parsed from the hash part of the import path URL
-
-Parsing of k6 test scripts and recursive traversal of module imports is done using the esbuild library (bundling feature).
-
-### Resolvers
-
-Normalized import paths are resolved using different resolvers. The resolvers are selected by pattern matching on the import path.
-
-#### HTTPS resolver
-
-An import path starting with `https://` is a remote JavaScript module reference and the normalized import path also specifies the location of the module.
-
-#### Local resolver
-
-An import path starting with the character `.` is a local JavaScript module reference, in which case the normalized import path also specifies the location of the module.
-
-#### Other resolvers
-
-TBD (@scope/name, name, github:user/repo, gitlab:user/repo, bitbucket:user/repo, etc)
+The command line tool can be integrated into other command line tools as a subcommand. For this purpose, the library also contains the functionality of the command line tool as a factrory function that returns [cobra.Command](https://pkg.go.dev/github.com/spf13/cobra#Command).
 
 ## Install
 
@@ -62,6 +29,78 @@ go install github.com/grafana/k6deps/cmd/k6deps@latest
 
 ## Usage
 
+<!-- #region cli -->
+## k6deps
+
+Extension dependency detection for k6.
+
+### Synopsis
+
+Analyze the k6 test script and extract the extensions that the script depends on.
+
+**Sources**
+
+Dependencies can come from three sources: k6 test script, manifest file, `K6_DEPENDENCIES` environment variable.
+
+Primarily, the k6 test script is the source of dependencies. The test script and the local and remote JavaScript modules it uses are recursively analyzed. The extensions used by the test script are collected. In addition to the require function and import expression, the `"use k6 ..."` directive can be used to specify additional extension dependencies. If necessary, the `"use k6 ..."` directive can also be used to specify version constraints.
+
+       "use k6>0.49";
+       "use k6 with k6/x/faker>=0.2.0";
+       "use k6 with k6/x/toml>v0.1.0";
+       "use k6 with xk6-dashboard*";
+
+Dependencies and version constraints can also be specified in the so-called manifest file. The default name of the manifest file is `package.json` and it is automatically searched from the directory containing the test script up to the root directory. The `dependencies` property of the manifest file contains the dependencies in JSON format.
+
+    {"dependencies":{"k6":">0.49","k6/x/faker":">=0.2.0","k6/x/toml":>v0.1.0","xk6-dashboard":"*"}}
+
+Dependencies and version constraints can also be specified in the `K6_DEPENDENCIES` environment variable. The value of the variable is a list of dependencies in a one-line text format.
+
+       k6>0.49;k6/x/faker>=0.2.0;k6/x/toml>v0.1.0;xk6-dashboard*
+
+**Format**
+
+By default, dependencies are written as a JSON object. The property name is the name of the dependency and the property value is the version constraints of the dependency.
+
+    {"k6":">0.49","k6/x/faker":">=0.2.0","k6/x/toml":>v0.1.0","xk6-dashboard":"*"}
+
+Additional output formats:
+
+ * `text` - One line text format. A semicolon-separated sequence of the text format of each dependency. The first element of the series is `k6` (if there is one), the following elements follow each other in lexically increasing order based on the name.
+
+       k6>0.49;k6/x/faker>=0.2.0;k6/x/toml>v0.1.0;xk6-dashboard*
+
+ * `js` - A consecutive, one-line JavaScript string directives. The first element of the series is `k6` (if there is one), the following elements follow each other in lexically increasing order based on the name.
+
+       "use k6>0.49";
+       "use k6 with k6/x/faker>=0.2.0";
+       "use k6 with k6/x/toml>v0.1.0";
+       "use k6 with xk6-dashboard*";
+
+**Output**
+
+By default, dependencies are written to standard output. By using the `-o/--output` flag, the dependencies can be written to a file.
+
+**Arguments**
+
+The only (optional) argument of the command is the name of the k6 test script file.
+
+```
+k6deps [flags] [script-file]
+```
+
+### Flags
+
+```
+      --format string     output format, possible values: json,env,script (default "json")
+  -h, --help              help for k6deps
+      --ignore-manifest   disable package.json detection and processing
+      --ignore-script     disable script processing
+      --ingnore-env       ignore K6_DEPENDENCIES environment variable processing
+      --manifest string   manifest file to analyze (default 'package.json' nearest to script-file)
+  -o, --output string     write output to file (default stdout)
+```
+
+<!-- #endregion cli -->
 
 ## Development
 
@@ -70,6 +109,14 @@ go install github.com/grafana/k6deps/cmd/k6deps@latest
 This section contains a description of the tasks performed during development. If you have the [xc (Markdown defined task runner)](https://github.com/joerdav/xc) command-line tool, individual tasks can be executed simply by using the `xc task-name` command.
 
 <details><summary>Click to expand</summary>
+
+#### readme
+
+Update documentation in README.md.
+
+```
+go run ./tools/gendoc README.md
+```
 
 #### lint
 
@@ -122,11 +169,5 @@ Delete the build directory.
 ```
 rm -rf build
 ```
-
-#### all
-
-Run all tasks.
-
-Requires: lint,test,build,snapshot
 
 </details>
