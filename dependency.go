@@ -1,0 +1,155 @@
+package k6deps
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"regexp"
+
+	"github.com/Masterminds/semver/v3"
+)
+
+const defaultConstraintsString = "*"
+
+//nolint:gochecknoglobals
+var (
+	ErrConstraints = errors.New("constraints error")
+	ErrDependency  = errors.New("dependency error")
+
+	defaultConstraints, _ = semver.NewConstraint(defaultConstraintsString)
+
+	reDependency             = regexp.MustCompile(`(?P<name>[0-9a-zA-Z/@_-]+) *(?P<constraints>[vxX*|,&\^0-9.+-><=, ~]+)?`)
+	idxDependencyName        = reDependency.SubexpIndex("name")
+	idxDependencyConstraints = reDependency.SubexpIndex("constraints")
+)
+
+// Dependency contains the properties of a k6 dependency (extension or k6 core).
+type Dependency struct {
+	// Name is the name of the dependency.
+	Name string `json:"name,omitempty"`
+	// Constraints contains the version constraints of the dependency.
+	Constraints *semver.Constraints `json:"constraints,omitempty"`
+}
+
+// NewDependency creates a new Dependency instance with the given name.
+// If the constraints parameter is not empty, it will be parsed as version constraints.
+func NewDependency(name, constraints string) (*Dependency, error) {
+	var err error
+
+	dep := new(Dependency)
+
+	dep.Name = name
+
+	if len(constraints) != 0 {
+		if dep.Constraints, err = semver.NewConstraint(constraints); err != nil {
+			return nil, fmt.Errorf("%w: %s", ErrConstraints, err.Error())
+		}
+	}
+
+	return dep, nil
+}
+
+func (dep *Dependency) getConstraints() *semver.Constraints {
+	if dep.Constraints == nil {
+		return defaultConstraints
+	}
+
+	return dep.Constraints
+}
+
+// MarshalText marshals the dependency into a single-line text format.
+// For example: k6/x/faker>0.1.0
+func (dep *Dependency) MarshalText() ([]byte, error) {
+	var buff bytes.Buffer
+
+	_, err := buff.WriteString(dep.Name)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = buff.WriteString(dep.getConstraints().String())
+	if err != nil {
+		return nil, err
+	}
+
+	return buff.Bytes(), nil
+}
+
+// MarshalJS marshals the dependency into a one-line JavaScript string directive format.
+// For example: "us k6 with k6/x/faker>0.1.0";
+func (dep *Dependency) MarshalJS() ([]byte, error) {
+	var buff bytes.Buffer
+
+	_, err := buff.WriteString(`"use k6`)
+	if err != nil {
+		return nil, err
+	}
+
+	if dep.Name != k6 {
+		_, err = buff.WriteString(" with ")
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = buff.WriteString(dep.Name)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	_, err = buff.WriteString(dep.getConstraints().String())
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = buff.WriteString(`";`)
+	if err != nil {
+		return nil, err
+	}
+
+	return buff.Bytes(), nil
+}
+
+// UnmarshalText parses the one-line text dependency format into the *dep variable.
+func (dep *Dependency) UnmarshalText(text []byte) error {
+	match := reDependency.FindSubmatch(text)
+	if match == nil {
+		return fmt.Errorf("%w: invalid text format: %s", ErrDependency, string(text))
+	}
+
+	var err error
+
+	dep.Name = string(match[idxDependencyName])
+	dep.Constraints, err = semver.NewConstraint(string(match[idxDependencyConstraints]))
+
+	return err
+}
+
+// String converts the dependency to displayable text format.
+// The format is the same as that used by MarshalText.
+func (dep *Dependency) String() string {
+	text, _ := dep.MarshalText()
+
+	return string(text)
+}
+
+func (dep *Dependency) update(from *Dependency) error {
+	fromString := from.getConstraints().String()
+	if fromString == defaultConstraintsString {
+		return nil
+	}
+
+	depString := dep.getConstraints().String()
+	if depString == defaultConstraintsString {
+		dep.Constraints = from.Constraints
+
+		return nil
+	}
+
+	if depString == fromString {
+		return nil
+	}
+
+	return fmt.Errorf("%w: %s has conflicting constraints:\n  %s\n  %s",
+		ErrConstraints, dep.Name, dep.getConstraints(), from.getConstraints())
+}
