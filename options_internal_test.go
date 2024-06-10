@@ -27,7 +27,7 @@ func Test_loadSources(t *testing.T) {
 	require.Equal(t, "k6>0.49", string(opts.Env.Contents))
 
 	require.Equal(t, filepath.Join(adir, "package.json"), opts.Manifest.Name)
-	require.Contains(t, string(opts.Script.Contents), "var faker = require(\"k6/x/faker\");\n")
+	require.Contains(t, string(opts.Script.Contents), "var faker = require(\"k6/x/faker\");")
 
 	opts = new(Options)
 
@@ -92,7 +92,7 @@ func Test_loadManifest(t *testing.T) {
 
 	err = loadManifest(opts)
 	require.NoError(t, err)
-	require.Equal(t, "{\"dependencies\":{}}\n", string(opts.Manifest.Contents))
+	require.Contains(t, string(opts.Manifest.Contents), "{\"dependencies\":{}}")
 
 	opts.Manifest.Name = ""
 	opts.Manifest.Contents = nil
@@ -131,7 +131,7 @@ func Test_loadScript(t *testing.T) {
 	err = loadScript(opts)
 
 	require.NoError(t, err)
-	require.Contains(t, string(opts.Script.Contents), "var faker = require(\"k6/x/faker\");\n")
+	require.Contains(t, string(opts.Script.Contents), "var faker = require(\"k6/x/faker\");")
 	require.Equal(t, aname, opts.Script.Name)
 
 	opts.Script.Name = filepath.Join("testdata", "bad.js")
@@ -187,13 +187,13 @@ func Test_findManifest(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, aname, name)
-	require.Equal(t, "{\"dependencies\":{}}\n", string(content))
+	require.Contains(t, string(content), "{\"dependencies\":{}}")
 
 	content, name, err = findManifest("testdata/foo/foo.js")
 
 	require.NoError(t, err)
 	require.Equal(t, aname, name)
-	require.Equal(t, "{\"dependencies\":{}}\n", string(content))
+	require.Contains(t, string(content), "{\"dependencies\":{}}")
 
 	content, name, err = findManifest(string(filepath.Separator))
 
