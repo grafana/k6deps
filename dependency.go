@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"regexp"
 
 	"github.com/Masterminds/semver/v3"
@@ -62,17 +63,21 @@ func (dep *Dependency) getConstraints() *semver.Constraints {
 func (dep *Dependency) MarshalText() ([]byte, error) {
 	var buff bytes.Buffer
 
-	_, err := buff.WriteString(dep.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = buff.WriteString(dep.getConstraints().String())
-	if err != nil {
+	if err := dep.marshalText(&buff); err != nil {
 		return nil, err
 	}
 
 	return buff.Bytes(), nil
+}
+
+func (dep *Dependency) marshalText(w io.Writer) error {
+	_, err := io.WriteString(w, dep.Name)
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(w, dep.getConstraints().String())
+	return err
 }
 
 // MarshalJS marshals the dependency into a one-line JavaScript string directive format.
@@ -80,34 +85,38 @@ func (dep *Dependency) MarshalText() ([]byte, error) {
 func (dep *Dependency) MarshalJS() ([]byte, error) {
 	var buff bytes.Buffer
 
-	_, err := buff.WriteString(`"use k6`)
-	if err != nil {
-		return nil, err
-	}
-
-	if dep.Name != k6 {
-		_, err = buff.WriteString(" with ")
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = buff.WriteString(dep.Name)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	_, err = buff.WriteString(dep.getConstraints().String())
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = buff.WriteString(`";`)
-	if err != nil {
+	if err := dep.marshalJS(&buff); err != nil {
 		return nil, err
 	}
 
 	return buff.Bytes(), nil
+}
+
+func (dep *Dependency) marshalJS(w io.Writer) error {
+	_, err := io.WriteString(w, `"use k6`)
+	if err != nil {
+		return err
+	}
+
+	if dep.Name != k6 {
+		_, err = io.WriteString(w, " with ")
+		if err != nil {
+			return err
+		}
+
+		_, err = io.WriteString(w, dep.Name)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = io.WriteString(w, dep.getConstraints().String())
+	if err != nil {
+		return err
+	}
+
+	_, err = io.WriteString(w, `";`)
+	return err
 }
 
 // UnmarshalText parses the one-line text dependency format into the *dep variable.
@@ -117,12 +126,16 @@ func (dep *Dependency) UnmarshalText(text []byte) error {
 		return fmt.Errorf("%w: invalid text format: %s", ErrDependency, string(text))
 	}
 
+	dep.Name = string(match[idxDependencyName])
+
 	var err error
 
-	dep.Name = string(match[idxDependencyName])
 	dep.Constraints, err = semver.NewConstraint(string(match[idxDependencyConstraints]))
+	if err != nil {
+		return fmt.Errorf("%w: %s", ErrConstraints, err.Error())
+	}
 
-	return err
+	return nil
 }
 
 // String converts the dependency to displayable text format.

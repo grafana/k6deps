@@ -63,7 +63,7 @@ func loadManifest(opts *Options) error {
 		return nil
 	}
 
-	if len(opts.Manifest.Name) == 0 {
+	if len(opts.Manifest.Name) == 0 || len(opts.Manifest.Contents) > 0 || opts.Manifest.Ignore {
 		return nil
 	}
 

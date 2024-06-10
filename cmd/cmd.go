@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/grafana/k6deps"
 	"github.com/spf13/cobra"
@@ -16,6 +17,16 @@ import (
 //go:generate go run github.com/dmarkham/enumer@v1.5.9 -type=format -transform=lower -trimprefix format -output format_gen.go
 
 type format int
+
+func (f *format) Set(v string) error {
+	var err error
+	*f, err = formatString(v)
+	return err
+}
+
+func (f format) Type() string {
+	return strings.Join(formatStrings(), "|")
+}
 
 const (
 	formatJSON format = iota
@@ -36,26 +47,13 @@ var help string
 func New() *cobra.Command {
 	opts := new(options)
 
-	var format string
-
 	cmd := &cobra.Command{
 		Use:   "deps [flags] [script-file]",
 		Short: "Extension dependency detection for k6.",
 		Long:  help,
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
-			if len(args) > 0 {
-				opts.Script.Name = args[0]
-			}
-
-			fmt, err := formatString(format)
-			if err != nil {
-				return err
-			}
-
-			opts.format = fmt
-
-			return deps(opts)
+			return deps(opts, args)
 		},
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -65,7 +63,7 @@ func New() *cobra.Command {
 
 	flags.StringVar(&opts.Manifest.Name, "manifest", "",
 		"manifest file to analyze (default 'package.json' nearest to script-file)")
-	flags.StringVar(&format, "format", "json", "output format, possible values: json,env,script")
+	flags.Var(&opts.format, "format", "output format, possible values: json,env,script")
 	flags.StringVarP(&opts.output, "output", "o", "", "write output to file (default stdout)")
 	flags.BoolVar(&opts.Env.Ignore, "ingnore-env", false,
 		"ignore "+k6deps.EnvDependencies+" environment variable processing")
@@ -75,7 +73,11 @@ func New() *cobra.Command {
 	return cmd
 }
 
-func deps(opts *options) error {
+func deps(opts *options, args []string) error {
+	if len(args) > 0 {
+		opts.Script.Name = args[0]
+	}
+
 	var out io.Writer
 
 	if len(opts.output) == 0 {
