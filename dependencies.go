@@ -3,6 +3,7 @@ package k6deps
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"regexp"
 	"sort"
 )
@@ -110,6 +111,8 @@ func (deps Dependencies) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 
+		buff.Truncate(buff.Len() - 1) // remove extra newline written by encoder
+
 		if _, err := buff.WriteRune(':'); err != nil {
 			return nil, err
 		}
@@ -117,6 +120,8 @@ func (deps Dependencies) MarshalJSON() ([]byte, error) {
 		if err := encoder.Encode(dep.getConstraints().String()); err != nil {
 			return nil, err
 		}
+
+		buff.Truncate(buff.Len() - 1) // remove extra newline written by encoder
 	}
 
 	if _, err := buff.WriteRune('}'); err != nil {
@@ -157,23 +162,33 @@ func (deps *Dependencies) UnmarshalJSON(data []byte) error {
 func (deps Dependencies) MarshalText() ([]byte, error) {
 	var buff bytes.Buffer
 
+	if err := deps.marshalText(&buff); err != nil {
+		return nil, err
+	}
+
+	return buff.Bytes(), nil
+}
+
+func (deps Dependencies) marshalText(w io.Writer) error {
 	for idx, dep := range deps.sorted() {
 		if idx > 0 {
-			buff.WriteRune(';')
+			if _, err := w.Write([]byte{';'}); err != nil {
+				return err
+			}
 		}
 
 		text, err := dep.MarshalText()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		_, err = buff.Write(text)
+		_, err = w.Write(text)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return buff.Bytes(), nil
+	return nil
 }
 
 // UnmarshalText parses the one-line text dependencies format into the *deps variable.
@@ -212,21 +227,32 @@ func (deps *Dependencies) UnmarshalText(text []byte) error {
 func (deps Dependencies) MarshalJS() ([]byte, error) {
 	var buff bytes.Buffer
 
-	for _, dep := range deps.sorted() {
-		js, err := dep.MarshalJS()
-		if err != nil {
-			return nil, err
-		}
-
-		_, err = buff.Write(js)
-		if err != nil {
-			return nil, err
-		}
-
-		buff.WriteRune('\n')
+	if err := deps.marshalJS(&buff); err != nil {
+		return nil, err
 	}
 
 	return buff.Bytes(), nil
+}
+
+func (deps Dependencies) marshalJS(w io.Writer) error {
+	for _, dep := range deps.sorted() {
+		js, err := dep.MarshalJS()
+		if err != nil {
+			return err
+		}
+
+		_, err = w.Write(js)
+		if err != nil {
+			return err
+		}
+
+		_, err = w.Write([]byte{'\n'})
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // UnmarshalJS unmarshals dependencies from a series of string directives

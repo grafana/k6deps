@@ -1,11 +1,9 @@
-<!-- The badges are prepared, it is worth displaying them when the repo becomes public.
 [![Go Reference](https://pkg.go.dev/badge/github.com/grafana/k6deps.svg)](https://pkg.go.dev/github.com/grafana/k6deps)
 [![GitHub Release](https://img.shields.io/github/v/release/grafana/k6deps)](https://github.com/grafana/k6deps/releases/)
 [![Go Report Card](https://goreportcard.com/badge/github.com/grafana/k6deps)](https://goreportcard.com/report/github.com/grafana/k6deps)
 [![GitHub Actions](https://github.com/grafana/k6deps/actions/workflows/test.yml/badge.svg)](https://github.com/grafana/k6deps/actions/workflows/test.yml)
 [![codecov](https://codecov.io/gh/grafana/k6deps/graph/badge.svg?token=PCRNQE9LGQ)](https://codecov.io/gh/grafana/k6deps)
 ![GitHub Downloads](https://img.shields.io/github/downloads/grafana/k6deps/total)
--->
 
 <h1 name="title">k6deps</h1>
 
