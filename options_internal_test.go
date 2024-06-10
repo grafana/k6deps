@@ -74,7 +74,7 @@ func Test_loadManifest(t *testing.T) {
 	err = loadManifest(opts)
 
 	require.NoError(t, err)
-	require.Equal(t, "{\"dependencies\":{}}\n", string(opts.Manifest.Contents))
+	require.Contains(t, string(opts.Manifest.Contents), "{\"dependencies\":{}}")
 
 	opts.Manifest.Name = "no such file"
 

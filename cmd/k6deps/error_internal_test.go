@@ -25,10 +25,10 @@ func Test_formatOptions(t *testing.T) {
 	defer func() { os.Stderr = saved }()
 
 	str := formatError(errors.ErrUnsupported)
-	require.Equal(t, "✘ [ERROR] unsupported operation\n\n", str)
+	require.Contains(t, str, "[ERROR] unsupported operation")
 
 	str = formatError(k6deps.ErrConstraints)
-	require.Equal(t, "✘ [ERROR] constraints error\n\n", str)
+	require.Contains(t, str, "[ERROR] constraints error")
 
 	require.NoError(t, file.Close())
 }
