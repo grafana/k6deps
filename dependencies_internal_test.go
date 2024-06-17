@@ -44,12 +44,12 @@ func Test_Dependencies_marshalText(t *testing.T) {
 func Test_Dependencies_sorted(t *testing.T) {
 	t.Parallel()
 
-	deps := testDeps(t, "").sorted()
+	deps := testDeps(t, "").Sorted()
 
 	require.Equal(t, "k6/x/faker", deps[0].Name)
 	require.Equal(t, "k6/x/yaml", deps[1].Name)
 
-	deps = testDeps(t, ">0.50").sorted()
+	deps = testDeps(t, ">0.50").Sorted()
 
 	require.Equal(t, "k6", deps[0].Name)
 	require.Equal(t, "k6/x/faker", deps[1].Name)
@@ -60,7 +60,7 @@ func Test_Dependencies_sorted(t *testing.T) {
 	dep, err := NewDependency("bar", ">v0.4.0")
 	require.NoError(t, err)
 	depsm[dep.Name] = dep
-	deps = depsm.sorted()
+	deps = depsm.Sorted()
 
 	require.Equal(t, "k6", deps[0].Name)
 	require.Equal(t, "bar", deps[1].Name)

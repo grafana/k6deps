@@ -59,7 +59,9 @@ func (deps Dependencies) Merge(from Dependencies) error {
 	return nil
 }
 
-func (deps Dependencies) sorted() []*Dependency {
+// Sorted returns dependencies as an array, with "k6" as a first element (if any) and the
+// rest of the array is sorted by name lexicographically.
+func (deps Dependencies) Sorted() []*Dependency {
 	all := make([]*Dependency, 0, len(deps))
 
 	for _, dep := range deps {
@@ -102,7 +104,7 @@ func (deps Dependencies) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 
-	for idx, dep := range deps.sorted() {
+	for idx, dep := range deps.Sorted() {
 		if idx > 0 {
 			buff.WriteRune(',')
 		}
@@ -170,7 +172,7 @@ func (deps Dependencies) MarshalText() ([]byte, error) {
 }
 
 func (deps Dependencies) marshalText(w io.Writer) error {
-	for idx, dep := range deps.sorted() {
+	for idx, dep := range deps.Sorted() {
 		if idx > 0 {
 			if _, err := w.Write([]byte{';'}); err != nil {
 				return err
@@ -235,7 +237,7 @@ func (deps Dependencies) MarshalJS() ([]byte, error) {
 }
 
 func (deps Dependencies) marshalJS(w io.Writer) error {
-	for _, dep := range deps.sorted() {
+	for _, dep := range deps.Sorted() {
 		js, err := dep.MarshalJS()
 		if err != nil {
 			return err
