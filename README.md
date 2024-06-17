@@ -78,9 +78,6 @@ Additional output formats:
 
 By default, dependencies are written to standard output. By using the `-o/--output` flag, the dependencies can be written to a file.
 
-**Arguments**
-
-The only (optional) argument of the command is the name of the k6 test script file.
 
 ```
 k6deps [flags] [script-file]
@@ -89,13 +86,13 @@ k6deps [flags] [script-file]
 ### Flags
 
 ```
-      --format string     output format, possible values: json,env,script (default "json")
-  -h, --help              help for k6deps
-      --ignore-manifest   disable package.json detection and processing
-      --ignore-script     disable script processing
-      --ingnore-env       ignore K6_DEPENDENCIES environment variable processing
-      --manifest string   manifest file to analyze (default 'package.json' nearest to script-file)
-  -o, --output string     write output to file (default stdout)
+      --format json|text|js   output format, possible values: json,env,script (default json)
+  -h, --help                  help for k6deps
+      --ignore-manifest       disable package.json detection and processing
+      --ignore-script         disable script processing
+      --ingnore-env           ignore K6_DEPENDENCIES environment variable processing
+      --manifest string       manifest file to analyze (default 'package.json' nearest to script-file)
+  -o, --output string         write output to file (default stdout)
 ```
 
 <!-- #endregion cli -->
