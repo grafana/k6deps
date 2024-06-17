@@ -119,7 +119,7 @@ func (deps Dependencies) MarshalJSON() ([]byte, error) {
 			return nil, err
 		}
 
-		if err := encoder.Encode(dep.getConstraints().String()); err != nil {
+		if err := encoder.Encode(dep.GetConstraints().String()); err != nil {
 			return nil, err
 		}
 

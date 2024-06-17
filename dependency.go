@@ -50,7 +50,8 @@ func NewDependency(name, constraints string) (*Dependency, error) {
 	return dep, nil
 }
 
-func (dep *Dependency) getConstraints() *semver.Constraints {
+// GetConstraints returns Constraints or the default constraints ("*") if Constraints is nil
+func (dep *Dependency) GetConstraints() *semver.Constraints {
 	if dep.Constraints == nil {
 		return defaultConstraints
 	}
@@ -76,7 +77,7 @@ func (dep *Dependency) marshalText(w io.Writer) error {
 		return err
 	}
 
-	_, err = io.WriteString(w, dep.getConstraints().String())
+	_, err = io.WriteString(w, dep.GetConstraints().String())
 	return err
 }
 
@@ -110,7 +111,7 @@ func (dep *Dependency) marshalJS(w io.Writer) error {
 		}
 	}
 
-	_, err = io.WriteString(w, dep.getConstraints().String())
+	_, err = io.WriteString(w, dep.GetConstraints().String())
 	if err != nil {
 		return err
 	}
@@ -147,12 +148,12 @@ func (dep *Dependency) String() string {
 }
 
 func (dep *Dependency) update(from *Dependency) error {
-	fromString := from.getConstraints().String()
+	fromString := from.GetConstraints().String()
 	if fromString == defaultConstraintsString {
 		return nil
 	}
 
-	depString := dep.getConstraints().String()
+	depString := dep.GetConstraints().String()
 	if depString == defaultConstraintsString {
 		dep.Constraints = from.Constraints
 
@@ -164,5 +165,5 @@ func (dep *Dependency) update(from *Dependency) error {
 	}
 
 	return fmt.Errorf("%w: %s has conflicting constraints:\n  %s\n  %s",
-		ErrConstraints, dep.Name, dep.getConstraints(), from.getConstraints())
+		ErrConstraints, dep.Name, dep.GetConstraints(), from.GetConstraints())
 }

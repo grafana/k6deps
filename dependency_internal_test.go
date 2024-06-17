@@ -12,12 +12,12 @@ func Test_Dependency_getConstraints(t *testing.T) {
 
 	dep := new(Dependency)
 
-	require.Equal(t, defaultConstraints, dep.getConstraints())
+	require.Equal(t, defaultConstraints, dep.GetConstraints())
 
 	dep, err := NewDependency("foo", "1.0")
 
 	require.NoError(t, err)
-	require.Equal(t, "1.0", dep.getConstraints().String())
+	require.Equal(t, "1.0", dep.GetConstraints().String())
 }
 
 func Test_Dependency_update(t *testing.T) {
