@@ -34,6 +34,30 @@ type Options struct {
 	// If the Ignore property is not set and no variable is specified,
 	// the value of the variable named K6_DEPENDENCIES is read.
 	Env Source
+	// LookupEnv function is used to query the value of the environment variable
+	// specified in the Env option Name if the Contents of the Env option is empty.
+	// If empty, os.LookupEnv will be used.
+	LookupEnv func(key string) (value string, ok bool)
+	// FindManifest function is used to find manifest file for the given scriptfile
+	// if the Contents of Manifest option is empty.
+	// If missing, the closest manifest file will be used.
+	FindManifest func(scriptfile string) (contents []byte, filename string, ok bool, err error)
+}
+
+func (opts *Options) findManifest(filename string) ([]byte, string, bool, error) {
+	if opts.FindManifest != nil {
+		return opts.FindManifest(filename)
+	}
+
+	return findManifest(filename)
+}
+
+func (opts *Options) lookupEnv(key string) (string, bool) {
+	if opts.LookupEnv != nil {
+		return opts.LookupEnv(key)
+	}
+
+	return os.LookupEnv(key) //nolint:forbidigo
 }
 
 func loadSources(opts *Options) error {
@@ -52,13 +76,15 @@ func loadSources(opts *Options) error {
 
 func loadManifest(opts *Options) error {
 	if len(opts.Manifest.Name) == 0 && !opts.Manifest.Ignore && len(opts.Script.Name) > 0 {
-		pkg, pkgfile, err := findManifest(opts.Script.Name)
+		pkg, pkgfile, found, err := opts.findManifest(opts.Script.Name)
 		if err != nil {
 			return err
 		}
 
-		opts.Manifest.Name = pkgfile
-		opts.Manifest.Contents = pkg
+		if found {
+			opts.Manifest.Name = pkgfile
+			opts.Manifest.Contents = pkg
+		}
 
 		return nil
 	}
@@ -104,26 +130,35 @@ func loadScript(opts *Options) error {
 }
 
 func loadEnv(opts *Options) {
-	value := os.Getenv(EnvDependencies) //nolint:forbidigo
-	if len(value) == 0 || opts.Env.Ignore {
+	if len(opts.Env.Contents) > 0 || opts.Env.Ignore {
 		return
 	}
 
-	opts.Env.Name = EnvDependencies
+	key := opts.Env.Name
+	if len(key) == 0 {
+		key = EnvDependencies
+	}
+
+	value, found := opts.lookupEnv(key)
+	if !found || len(value) == 0 {
+		return
+	}
+
+	opts.Env.Name = key
 	opts.Env.Contents = []byte(value)
 }
 
-func findManifest(filename string) ([]byte, string, error) {
+func findManifest(filename string) ([]byte, string, bool, error) {
 	abs, err := filepath.Abs(filename)
 	if err != nil {
-		return nil, "", err
+		return nil, "", false, err
 	}
 
 	for dir := filepath.Dir(abs); ; dir = filepath.Dir(dir) {
 		filename := filepath.Clean(filepath.Join(dir, "package.json"))
 		if _, err := os.Stat(filename); !errors.Is(err, os.ErrNotExist) { //nolint:forbidigo
 			contents, err := os.ReadFile(filename) //nolint:forbidigo
-			return contents, filename, err
+			return contents, filename, err == nil, err
 		}
 
 		if dir[len(dir)-1] == filepath.Separator {
@@ -131,5 +166,5 @@ func findManifest(filename string) ([]byte, string, error) {
 		}
 	}
 
-	return nil, "", nil
+	return nil, "", false, nil
 }

@@ -179,9 +179,10 @@ func Test_loadEnv(t *testing.T) {
 func Test_findManifest(t *testing.T) {
 	t.Parallel()
 
-	content, name, err := findManifest("testdata/foo/bar/bar.js")
+	content, name, found, err := findManifest("testdata/foo/bar/bar.js")
 
 	require.NoError(t, err)
+	require.True(t, found)
 
 	aname, err := filepath.Abs(filepath.Join("testdata", "foo", "package.json"))
 
@@ -189,15 +190,17 @@ func Test_findManifest(t *testing.T) {
 	require.Equal(t, aname, name)
 	require.Contains(t, string(content), "{\"dependencies\":{}}")
 
-	content, name, err = findManifest("testdata/foo/foo.js")
+	content, name, found, err = findManifest("testdata/foo/foo.js")
 
 	require.NoError(t, err)
+	require.True(t, found)
 	require.Equal(t, aname, name)
 	require.Contains(t, string(content), "{\"dependencies\":{}}")
 
-	content, name, err = findManifest(string(filepath.Separator))
+	content, name, found, err = findManifest(string(filepath.Separator))
 
 	require.NoError(t, err)
+	require.False(t, found)
 	require.Nil(t, content)
 	require.Empty(t, name)
 }
