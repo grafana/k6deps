@@ -18,6 +18,7 @@ func Test_filterInvalid(t *testing.T) {
 	t.Parallel()
 
 	deps := Dependencies{
+		"k6":               &Dependency{Name: "k6"},
 		"foo":              &Dependency{Name: "foo"},
 		"bar":              &Dependency{Name: "bar"},
 		"k6/x/faker":       &Dependency{Name: "k6/x/faker"},
@@ -27,7 +28,8 @@ func Test_filterInvalid(t *testing.T) {
 
 	valid := filterInvalid(deps)
 
-	require.Len(t, valid, 3)
+	require.Len(t, valid, 4)
+	require.Contains(t, valid, "k6")
 	require.Contains(t, valid, "k6/x/faker")
 	require.Contains(t, valid, "xk6-foo")
 	require.Contains(t, valid, "@grafana/xk6-bar")
