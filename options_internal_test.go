@@ -1,6 +1,7 @@
 package k6deps
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -203,4 +204,23 @@ func Test_findManifest(t *testing.T) {
 	require.False(t, found)
 	require.Nil(t, content)
 	require.Empty(t, name)
+}
+
+func Test_findManifest_empty_arg(t *testing.T) {
+	pwd, err := os.Getwd()
+	defer func() { os.Chdir(pwd) }()
+
+	require.NoError(t, err)
+
+	os.Chdir(filepath.Join("testdata", "foo", "bar"))
+	content, name, found, err := findManifest("")
+
+	require.NoError(t, err)
+	require.True(t, found)
+
+	aname := filepath.Join(pwd, "testdata", "foo", "package.json")
+
+	require.NoError(t, err)
+	require.Equal(t, aname, name)
+	require.Contains(t, string(content), "{\"dependencies\":{}}")
 }

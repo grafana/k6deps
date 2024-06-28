@@ -40,6 +40,8 @@ type Options struct {
 	LookupEnv func(key string) (value string, ok bool)
 	// FindManifest function is used to find manifest file for the given scriptfile
 	// if the Contents of Manifest option is empty.
+	// If the scriptfile parameter is empty, FindManifest starts searching
+	// for the manifest file from the current directory
 	// If missing, the closest manifest file will be used.
 	FindManifest func(scriptfile string) (contents []byte, filename string, ok bool, err error)
 }
@@ -75,7 +77,7 @@ func loadSources(opts *Options) error {
 }
 
 func loadManifest(opts *Options) error {
-	if len(opts.Manifest.Name) == 0 && !opts.Manifest.Ignore && len(opts.Script.Name) > 0 {
+	if len(opts.Manifest.Name) == 0 && !opts.Manifest.Ignore {
 		pkg, pkgfile, found, err := opts.findManifest(opts.Script.Name)
 		if err != nil {
 			return err
@@ -149,6 +151,10 @@ func loadEnv(opts *Options) {
 }
 
 func findManifest(filename string) ([]byte, string, bool, error) {
+	if len(filename) == 0 {
+		filename = "any_file"
+	}
+
 	abs, err := filepath.Abs(filename)
 	if err != nil {
 		return nil, "", false, err
