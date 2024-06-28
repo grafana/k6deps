@@ -206,13 +206,16 @@ func Test_findManifest(t *testing.T) {
 	require.Empty(t, name)
 }
 
+//nolint:forbidigo,paralleltest
 func Test_findManifest_empty_arg(t *testing.T) {
 	pwd, err := os.Getwd()
-	defer func() { os.Chdir(pwd) }()
+	defer func() {
+		require.NoError(t, os.Chdir(pwd))
+	}()
 
 	require.NoError(t, err)
 
-	os.Chdir(filepath.Join("testdata", "foo", "bar"))
+	require.NoError(t, os.Chdir(filepath.Join("testdata", "foo", "bar")))
 	content, name, found, err := findManifest("")
 
 	require.NoError(t, err)
