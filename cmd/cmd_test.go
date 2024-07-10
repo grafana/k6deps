@@ -15,7 +15,7 @@ func Test_New(t *testing.T) {
 
 	root := cmd.New()
 
-	require.Equal(t, "deps [flags] [script-file]", root.Use)
+	require.Equal(t, "k6deps [flags] [script-file]", root.Use)
 
 	dir := t.TempDir()
 
