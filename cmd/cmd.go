@@ -1,4 +1,4 @@
-// Package cmd contains deps cobra command factory function.
+// Package cmd contains k6deps cobra command factory function.
 package cmd
 
 import (
@@ -48,7 +48,7 @@ func New() *cobra.Command {
 	opts := new(options)
 
 	cmd := &cobra.Command{
-		Use:   "deps [flags] [script-file]",
+		Use:   "k6deps [flags] [script-file]",
 		Short: "Extension dependency detection for k6.",
 		Long:  help,
 		Args:  cobra.MaximumNArgs(1),

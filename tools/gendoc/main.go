@@ -3,7 +3,6 @@ package main
 
 import (
 	_ "embed"
-	"strings"
 
 	"github.com/grafana/clireadme"
 	"github.com/grafana/k6deps/cmd"
@@ -11,6 +10,5 @@ import (
 
 func main() {
 	root := cmd.New()
-	root.Use = strings.ReplaceAll(root.Use, "deps", "k6deps")
 	clireadme.Main(root, 1)
 }
