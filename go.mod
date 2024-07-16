@@ -6,7 +6,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/evanw/esbuild v0.21.5
 	github.com/grafana/clireadme v0.1.0
-	github.com/grafana/k6pack v0.2.0
+	github.com/grafana/k6pack v0.2.2
 	github.com/spf13/cobra v1.8.1
 	github.com/stretchr/testify v1.9.0
 	golang.org/x/term v0.21.0
