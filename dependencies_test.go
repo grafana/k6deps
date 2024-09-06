@@ -155,6 +155,8 @@ func Test_Dependencies_UnmarshalJS(t *testing.T) {
 	err := deps.UnmarshalJS([]byte(`"use k6>0.50";
 "use k6 with k6/x/bar>v0.2.0";
 "use k6 with k6/x/foo>v0.1.0";
+import "k6/x/dumber";
+import hello from "k6/x/hello"
 let dumb = require("k6/x/dumb");
 `))
 	require.NoError(t, err)
@@ -163,6 +165,8 @@ let dumb = require("k6/x/dumb");
 	require.Equal(t, "k6/x/bar>v0.2.0", deps["k6/x/bar"].String())
 	require.Equal(t, "k6/x/foo>v0.1.0", deps["k6/x/foo"].String())
 	require.Equal(t, "k6/x/dumb*", deps["k6/x/dumb"].String())
+	require.Equal(t, "k6/x/dumber*", deps["k6/x/dumber"].String())
+	require.Equal(t, "k6/x/hello*", deps["k6/x/hello"].String())
 
 	err = deps.UnmarshalJS([]byte(`"use k6 with k6/x/foo>v0.1.0";
 "use k6 with k6/x/dumb>v0.4.0";
@@ -182,4 +186,26 @@ let dumb = require("k6/x/dumb");
 "use k6 with k6/x/foo>v0.1.0";
 `))
 	require.Error(t, err)
+}
+
+func Test_Dependencies_UnmarshalJS_real_script(t *testing.T) {
+	t.Parallel()
+
+	deps := make(k6deps.Dependencies)
+
+	err := deps.UnmarshalJS([]byte(`
+import exec from 'k6/x/exec';
+import faker from "k6/x/faker"
+import "k6/x/sql"
+
+export default function () {
+  console.log(exec.command("date"));
+}	
+`))
+	require.NoError(t, err)
+
+	require.Len(t, deps, 3)
+	require.Equal(t, "k6/x/exec*", deps["k6/x/exec"].String())
+	require.Equal(t, "k6/x/faker*", deps["k6/x/faker"].String())
+	require.Equal(t, "k6/x/sql*", deps["k6/x/sql"].String())
 }
