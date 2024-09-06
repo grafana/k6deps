@@ -6,6 +6,7 @@ import (
 	"io"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 //nolint:gochecknoglobals
@@ -15,8 +16,13 @@ var (
 
 	reName = regexp.MustCompile(srcName)
 
-	reRequire      = regexp.MustCompile(`require\("` + srcName + `"\)`)
-	idxRequireName = reRequire.SubexpIndex("name")
+	srcModule  = strings.ReplaceAll(srcName, "name", "module")
+	srcRequire = `require\("` + srcName + `"\)`
+	srcImport  = `import (.* from )?["']` + srcModule + `["'](;|$)`
+
+	reRequireOrImport        = regexp.MustCompile("(?m:" + srcRequire + "|" + srcImport + ")")
+	idxRequireOrImportName   = reRequireOrImport.SubexpIndex("name")
+	idxRequireOrImportModule = reRequireOrImport.SubexpIndex("module")
 
 	reUseK6 = regexp.MustCompile(
 		`"use +k6(( with ` + srcName + `( *(?P<constraints>` + srcConstraint + `))?)|(( *(?P<k6Constraints>` + srcConstraint + `)?)))"`) //nolint:lll
@@ -262,8 +268,13 @@ func (deps Dependencies) marshalJS(w io.Writer) error {
 func (deps *Dependencies) UnmarshalJS(text []byte) error {
 	*deps = make(Dependencies)
 
-	for _, match := range reRequire.FindAllSubmatch(text, -1) {
-		if extension := string(match[idxRequireName]); len(extension) != 0 {
+	for _, match := range reRequireOrImport.FindAllSubmatch(text, -1) {
+		extension := string(match[idxRequireOrImportName])
+		if len(extension) == 0 {
+			extension = string(match[idxRequireOrImportModule])
+		}
+
+		if len(extension) != 0 {
 			_ = deps.update(&Dependency{Name: extension}) // no chance for conflicting
 		}
 	}
