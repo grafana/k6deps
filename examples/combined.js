@@ -1,13 +1,13 @@
 "use k6 = 0.52";
 "use k6 with k6/x/faker >= 0.3.0";
-"use k6 with k6/x/sql >= 0.4.0";
+"use k6 with k6/x/sql >= 1.0.0";
 
 import faker from "./faker.js";
-import sqlite from "./sqlite.js";
+import sql from "./sql.js";
 
-export { setup, teardown } from "./sqlite.js";
+export { setup, teardown } from "./sql.js";
 
 export default () => {
   faker();
-  sqlite();
+  sql();
 };
