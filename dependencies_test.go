@@ -211,3 +211,23 @@ export default function () {
 	require.Equal(t, "k6/x/faker*", deps["k6/x/faker"].String())
 	require.Equal(t, "k6/x/sql*", deps["k6/x/sql"].String())
 }
+
+func Test_Dependencies_UnmarshalJS_k6_path(t *testing.T) {
+	t.Parallel()
+
+	deps := make(k6deps.Dependencies)
+
+	err := deps.UnmarshalJS([]byte(`
+import Counter from 'k6/metrics';
+
+const count = new Conter("foo")
+
+export default function () {
+  count.add(1)
+}	
+`))
+	require.NoError(t, err)
+
+	require.Len(t, deps, 1)
+	require.Equal(t, "k6*", deps["k6"].String())
+}

@@ -10,7 +10,12 @@ import (
 	"github.com/Masterminds/semver/v3"
 )
 
-const defaultConstraintsString = "*"
+const (
+	// ConstraintsAny is a wildcard constraint that any version matches.
+	ConstraintsAny = "*"
+
+	defaultConstraintsString = ConstraintsAny
+)
 
 //nolint:gochecknoglobals
 var (
