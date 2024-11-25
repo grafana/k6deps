@@ -11,7 +11,7 @@ import (
 
 //nolint:gochecknoglobals
 var (
-	srcName       = `(?P<name>k6|k6/x/[/0-9a-zA-Z_-]+|(@[a-zA-Z0-9-_]+/)?xk6-([a-zA-Z0-9-_]+)((/[a-zA-Z0-9-_]+)*))`
+	srcName       = `(?P<name>k6|k6/[^/]{2}.*|k6/[^x]/.*|k6/x/[/0-9a-zA-Z_-]+|(@[a-zA-Z0-9-_]+/)?xk6-([a-zA-Z0-9-_]+)((/[a-zA-Z0-9-_]+)*))`
 	srcConstraint = `[vxX*|,&\^0-9.+-><=, ~]+`
 
 	reName = regexp.MustCompile(srcName)
@@ -275,6 +275,11 @@ func (deps *Dependencies) UnmarshalJS(text []byte) error {
 		}
 
 		if len(extension) != 0 {
+			// no negative lookahead regex support....
+			if strings.HasPrefix(extension, "k6/") && !strings.HasPrefix(extension, "k6/x/") {
+				extension = k6
+			}
+
 			_ = deps.update(&Dependency{Name: extension}) // no chance for conflicting
 		}
 	}
