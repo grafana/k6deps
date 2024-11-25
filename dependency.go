@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	// ConstraintsAny is a wildcard constraint that any version matches.
 	ConstraintsAny = "*"
 
 	defaultConstraintsString = ConstraintsAny
