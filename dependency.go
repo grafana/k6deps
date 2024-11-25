@@ -10,7 +10,11 @@ import (
 	"github.com/Masterminds/semver/v3"
 )
 
-const defaultConstraintsString = "*"
+const (
+	ConstraintsAny = "*"
+
+	defaultConstraintsString = ConstraintsAny
+)
 
 //nolint:gochecknoglobals
 var (
