@@ -28,7 +28,7 @@ func Test_loadSources(t *testing.T) {
 	require.Equal(t, "k6>0.49", string(opts.Env.Contents))
 
 	require.Equal(t, filepath.Join(adir, "package.json"), opts.Manifest.Name)
-	require.Contains(t, string(opts.Script.Contents), "var faker = require(\"k6/x/faker\");")
+	require.Contains(t, string(opts.Script.Contents), "var faker = __require(\"k6/x/faker\");")
 
 	opts = new(Options)
 
@@ -132,7 +132,7 @@ func Test_loadScript(t *testing.T) {
 	err = loadScript(opts)
 
 	require.NoError(t, err)
-	require.Contains(t, string(opts.Script.Contents), "var faker = require(\"k6/x/faker\");")
+	require.Contains(t, string(opts.Script.Contents), "var faker = __require(\"k6/x/faker\");")
 	require.Equal(t, aname, opts.Script.Name)
 
 	opts.Script.Name = filepath.Join("testdata", "bad.js")
