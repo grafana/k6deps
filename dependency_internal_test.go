@@ -90,3 +90,21 @@ func Test_Dependency_marshalJS(t *testing.T) {
 		require.Error(t, err)
 	}
 }
+
+func Test_reDependency(t *testing.T) {
+	t.Parallel()
+
+	var d Dependency
+
+	require.NoError(t, d.UnmarshalText([]byte("k6*")))
+	require.Equal(t, "*", d.Constraints.String())
+
+	require.NoError(t, d.UnmarshalText([]byte("k6 >= v0.55")))
+	require.Equal(t, ">=v0.55", d.Constraints.String())
+
+	require.NoError(t, d.UnmarshalText([]byte("k6 v0.0.0+135f85b")))
+	require.Equal(t, "v0.0.0+135f85b", d.Constraints.String())
+
+	require.NoError(t, d.UnmarshalText([]byte("k6 v0.0.0+90bb941")))
+	require.Equal(t, "v0.0.0+90bb941", d.Constraints.String())
+}
