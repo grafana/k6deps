@@ -24,7 +24,9 @@ var (
 
 	defaultConstraints, _ = semver.NewConstraint(defaultConstraintsString)
 
-	reDependency             = regexp.MustCompile(`(?P<name>[0-9a-zA-Z/@_-]+) *(?P<constraints>[vxX*|,&\^0-9.+-><=, ~]+)?`)
+	srcDependency = `(?P<name>[0-9a-zA-Z/@_-]+) *(?P<constraints>` + srcConstraint + `)?`
+
+	reDependency             = regexp.MustCompile(srcDependency)
 	idxDependencyName        = reDependency.SubexpIndex("name")
 	idxDependencyConstraints = reDependency.SubexpIndex("constraints")
 )
