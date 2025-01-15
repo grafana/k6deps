@@ -14,6 +14,9 @@ const (
 	// ConstraintsAny is a wildcard constraint that any version matches.
 	ConstraintsAny = "*"
 
+	// NameK6 is the name of the k6 dependency, its value is "k6".
+	NameK6 = "k6"
+
 	defaultConstraintsString = ConstraintsAny
 )
 
@@ -106,7 +109,7 @@ func (dep *Dependency) marshalJS(w io.Writer) error {
 		return err
 	}
 
-	if dep.Name != k6 {
+	if dep.Name != NameK6 {
 		_, err = io.WriteString(w, " with ")
 		if err != nil {
 			return err

@@ -32,8 +32,6 @@ var (
 	idxUseK6Constraints = reUseK6.SubexpIndex("k6Constraints")
 )
 
-const k6 = "k6"
-
 // Dependencies contains the dependencies of the k6 test script in map format.
 // The key of the map is the name of the dependency.
 type Dependencies map[string]*Dependency
@@ -75,11 +73,11 @@ func (deps Dependencies) Sorted() []*Dependency {
 	}
 
 	sort.Slice(all, func(i, j int) bool {
-		if all[i].Name == k6 {
+		if all[i].Name == NameK6 {
 			return true
 		}
 
-		if all[j].Name == k6 {
+		if all[j].Name == NameK6 {
 			return false
 		}
 
@@ -277,7 +275,7 @@ func (deps *Dependencies) UnmarshalJS(text []byte) error {
 		if len(extension) != 0 {
 			// no negative lookahead regex support....
 			if strings.HasPrefix(extension, "k6/") && !strings.HasPrefix(extension, "k6/x/") {
-				extension = k6
+				extension = NameK6
 			}
 
 			_ = deps.update(&Dependency{Name: extension}) // no chance for conflicting
@@ -293,7 +291,7 @@ func processUseDirectives(text []byte, deps Dependencies) error {
 		var err error
 
 		if constraints := string(match[idxUseK6Constraints]); len(constraints) != 0 {
-			dep, err = NewDependency(k6, constraints)
+			dep, err = NewDependency(NameK6, constraints)
 			if err != nil {
 				return err
 			}
