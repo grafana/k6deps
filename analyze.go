@@ -4,6 +4,8 @@ import "encoding/json"
 
 // Analyze searches, loads and analyzes the specified sources,
 // extracting the k6 extensions and their version constraints.
+// Note: if archive is specified, the other three sources will not be taken into account,
+// since the archive may contain them.
 func Analyze(opts *Options) (Dependencies, error) {
 	if err := loadSources(opts); err != nil {
 		return nil, err

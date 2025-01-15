@@ -11,7 +11,7 @@
 
 The goal of k6deps is to extract dependencies from k6 test scripts. For this purpose, k6deps analyzes the k6 test scripts and the modules imported from it in a recursive manner.
 
-k6deps is primarily used as a go library for [k6](https://github.com/grafana/k6) and [xk6](https://github.com/grafana/xk6). In addition, it also contains a command-line tool, which is suitable for listing the dependencies of k6 test scripts.
+k6deps is primarily used as a [go library](https://pkg.go.dev/github.com/grafana/k6deps). In addition, it also contains a [command-line tool](#cli), which is suitable for listing the dependencies of k6 test scripts.
 
 The command line tool can be integrated into other command line tools as a subcommand. For this purpose, the library also contains the functionality of the command line tool as a factrory function that returns [cobra.Command](https://pkg.go.dev/github.com/spf13/cobra#Command).
 
@@ -27,6 +27,102 @@ go install github.com/grafana/k6deps/cmd/k6deps@latest
 
 ## Usage
 
+Dependencies can come from three [sources](#sources): k6 test script, manifest file, `K6_DEPENDENCIES` environment variable. Instead of these three sources, a k6 archive can also be specified, which can contain all three sources (currently two actually, because the manifest file is not yet included in the k6 archive).
+
+In the simplest use, we only extract the dependencies from the script source.
+
+<details><summary><strong>with pragma</strong></summary>
+
+```go file=analyze_example_with_pragma_test.go
+package k6deps_test
+
+import (
+	"fmt"
+
+	"github.com/grafana/k6deps"
+)
+
+const scriptWithPragma = `
+"use k6 > 0.54";
+"use k6 with k6/x/faker > 0.4.0";
+"use k6 with k6/x/sql >= 1.0.1";
+
+import { Faker } from "k6/x/faker";
+import sql from "k6/x/sql";
+import driver from "k6/x/sql/driver/ramsql";
+
+export default function() {
+}
+`
+
+func ExampleAnalyze_with_pragma() {
+	deps, _ := k6deps.Analyze(&k6deps.Options{
+		Script: k6deps.Source{
+			Name:     "script.js",
+			Contents: []byte(scriptWithPragma),
+		},
+		// disable automatic source detection
+		Manifest: k6deps.Source{Ignore: true},
+		Env:      k6deps.Source{Ignore: true},
+	})
+
+	fmt.Println(deps.String())
+
+	out, _ := deps.MarshalJSON()
+	fmt.Println(string(out))
+	// Output:
+	// k6>0.54;k6/x/faker>0.4.0;k6/x/sql>=1.0.1;k6/x/sql/driver/ramsql*
+	// {"k6":">0.54","k6/x/faker":">0.4.0","k6/x/sql":">=1.0.1","k6/x/sql/driver/ramsql":"*"}
+}
+```
+
+</details>
+
+<details><summary><strong>without pragma</strong></summary>
+
+```go file=analyze_example_without_pragma_test.go
+package k6deps_test
+
+import (
+	"fmt"
+
+	"github.com/grafana/k6deps"
+)
+
+const scriptWithoutPragma = `
+import { Faker } from "k6/x/faker";
+import sql from "k6/x/sql";
+import driver from "k6/x/sql/driver/ramsql";
+
+export default function() {
+}
+`
+
+func ExampleAnalyze_without_pragma() {
+	deps, _ := k6deps.Analyze(&k6deps.Options{
+		Script: k6deps.Source{
+			Name:     "script.js",
+			Contents: []byte(scriptWithoutPragma),
+		},
+		// disable automatic source detection
+		Manifest: k6deps.Source{Ignore: true},
+		Env:      k6deps.Source{Ignore: true},
+	})
+
+	fmt.Println(deps.String())
+
+	out, _ := deps.MarshalJSON()
+	fmt.Println(string(out))
+	// Output:
+	// k6/x/faker*;k6/x/sql*;k6/x/sql/driver/ramsql*
+	// {"k6/x/faker":"*","k6/x/sql":"*","k6/x/sql/driver/ramsql":"*"}
+}
+```
+
+</details>
+
+## CLI
+
 <!-- #region cli -->
 ## k6deps
 
@@ -36,45 +132,47 @@ Extension dependency detection for k6.
 
 Analyze the k6 test script and extract the extensions that the script depends on.
 
-**Sources**
+### Sources
 
-Dependencies can come from three sources: k6 test script, manifest file, `K6_DEPENDENCIES` environment variable.
+Dependencies can come from three sources: k6 test script, manifest file, `K6_DEPENDENCIES` environment variable. Instead of these three sources, a k6 archive can also be specified, which can contain all three sources (currently two actually, because the manifest file is not yet included in the k6 archive).
 
 Primarily, the k6 test script is the source of dependencies. The test script and the local and remote JavaScript modules it uses are recursively analyzed. The extensions used by the test script are collected. In addition to the require function and import expression, the `"use k6 ..."` directive can be used to specify additional extension dependencies. If necessary, the `"use k6 ..."` directive can also be used to specify version constraints.
 
-       "use k6>0.49";
-       "use k6 with k6/x/faker>=0.2.0";
-       "use k6 with k6/x/toml>v0.1.0";
-       "use k6 with xk6-dashboard*";
+    "use k6 > 0.54";
+    "use k6 with k6/x/faker > 0.4.0";
+    "use k6 with k6/x/sql >= 1.0.1";
+
+    import { Faker } from "k6/x/faker";
+    import sql from "k6/x/sql";
+    import driver from "k6/x/sql/driver/ramsql";
 
 Dependencies and version constraints can also be specified in the so-called manifest file. The default name of the manifest file is `package.json` and it is automatically searched from the directory containing the test script up to the root directory. The `dependencies` property of the manifest file contains the dependencies in JSON format.
 
-    {"dependencies":{"k6":">0.49","k6/x/faker":">=0.2.0","k6/x/toml":>v0.1.0","xk6-dashboard":"*"}}
+    {"dependencies":{"k6":">0.54","k6/x/faker":">0.4.0","k6/x/sql":>=v1.0.1"}}
 
 Dependencies and version constraints can also be specified in the `K6_DEPENDENCIES` environment variable. The value of the variable is a list of dependencies in a one-line text format.
 
-       k6>0.49;k6/x/faker>=0.2.0;k6/x/toml>v0.1.0;xk6-dashboard*
+    k6>0.54;k6/x/faker>0.4.0;k6/x/sql>=v1.0.1
 
-**Format**
+### Format
 
 By default, dependencies are written as a JSON object. The property name is the name of the dependency and the property value is the version constraints of the dependency.
 
-    {"k6":">0.49","k6/x/faker":">=0.2.0","k6/x/toml":>v0.1.0","xk6-dashboard":"*"}
+    {"k6":">0.54","k6/x/faker":">0.4.0","k6/x/sql":">=1.0.1","k6/x/sql/driver/ramsql":"*"}
 
 Additional output formats:
 
  * `text` - One line text format. A semicolon-separated sequence of the text format of each dependency. The first element of the series is `k6` (if there is one), the following elements follow each other in lexically increasing order based on the name.
 
-       k6>0.49;k6/x/faker>=0.2.0;k6/x/toml>v0.1.0;xk6-dashboard*
+        k6>0.54;k6/x/faker>0.4.0;k6/x/sql>=1.0.1;k6/x/sql/driver/ramsql*
 
  * `js` - A consecutive, one-line JavaScript string directives. The first element of the series is `k6` (if there is one), the following elements follow each other in lexically increasing order based on the name.
 
-       "use k6>0.49";
-       "use k6 with k6/x/faker>=0.2.0";
-       "use k6 with k6/x/toml>v0.1.0";
-       "use k6 with xk6-dashboard*";
+        "use k6>0.54";
+        "use k6 with k6/x/faker>0.4.0";
+        "use k6 with k6/x/sql>=v1.0.1";
 
-**Output**
+### Output
 
 By default, dependencies are written to standard output. By using the `-o/--output` flag, the dependencies can be written to a file.
 
@@ -97,72 +195,7 @@ k6deps [flags] [script-file]
 
 <!-- #endregion cli -->
 
-## Development
+## Contribute
 
-### Tasks
-
-This section contains a description of the tasks performed during development. If you have the [xc (Markdown defined task runner)](https://github.com/joerdav/xc) command-line tool, individual tasks can be executed simply by using the `xc task-name` command.
-
-<details><summary>Click to expand</summary>
-
-#### readme
-
-Update documentation in README.md.
-
-```
-go run ./tools/gendoc README.md
-```
-
-#### lint
-
-Run the static analyzer.
-
-```
-golangci-lint run
-```
-
-#### test
-
-Run the tests.
-
-```
-go test -count 1 -race -coverprofile=build/coverage.txt ./...
-```
-
-#### coverage
-
-View the test coverage report.
-
-```
-go tool cover -html=build/coverage.txt
-```
-
-#### build
-
-Build the executable binary.
-
-This is the easiest way to create an executable binary (although the release process uses the goreleaser tool to create release versions).
-
-```
-go build -ldflags="-w -s" -o build/k6deps ./cmd/k6deps
-```
-
-#### snapshot
-
-Creating an executable binary with a snapshot version.
-
-The goreleaser command-line tool is used during the release process. During development, it is advisable to create binaries with the same tool from time to time.
-
-```
-goreleaser build --snapshot --clean --single-target -o build/k6deps
-```
-
-#### clean
-
-Delete the build directory.
-
-```
-rm -rf build
-```
-
-</details>
+If you want to contribute or help with the development of **k6pack**, start by 
+reading [CONTRIBUTING.md](CONTRIBUTING.md).
