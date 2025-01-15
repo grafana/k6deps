@@ -1,7 +1,9 @@
 package k6deps
 
 import (
+	"bytes"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -26,6 +28,11 @@ type Source struct {
 type Options struct {
 	// Script contains the properties of the k6 test script to be analyzed.
 	Script Source
+	// Archive contains the properties of the k6 archive to be analyzed.
+	// If archive is specified, the other three sources will not be taken into account,
+	// since the archive may contain them.
+	// An archive is a tar file, which can be created using the k6 archive command, for example.
+	Archive Source
 	// Manifest contains the properties of the manifest file to be analyzed.
 	// If the Ignore property is not set and no manifest file is specified,
 	// the package.json file closest to the script is searched for.
@@ -63,6 +70,10 @@ func (opts *Options) lookupEnv(key string) (string, bool) {
 }
 
 func loadSources(opts *Options) error {
+	if !opts.Archive.Ignore && (len(opts.Archive.Contents) > 0 || len(opts.Archive.Name) > 0) {
+		return loadArchive(opts)
+	}
+
 	if err := loadManifest(opts); err != nil {
 		return err
 	}
@@ -173,4 +184,51 @@ func findManifest(filename string) ([]byte, string, bool, error) {
 	}
 
 	return nil, "", false, nil
+}
+
+//nolint:forbidigo
+func loadArchive(opts *Options) error {
+	if opts.Archive.Ignore || (len(opts.Archive.Name) == 0 && len(opts.Archive.Contents) == 0) {
+		return nil
+	}
+
+	var reader io.Reader
+
+	if len(opts.Archive.Contents) == 0 {
+		archivefile, err := filepath.Abs(opts.Archive.Name)
+		if err != nil {
+			return err
+		}
+
+		file, err := os.Open(filepath.Clean(archivefile))
+		if err != nil {
+			return err
+		}
+
+		defer file.Close() //nolint:errcheck
+
+		reader = file
+	} else {
+		reader = bytes.NewReader(opts.Archive.Contents)
+	}
+
+	dir, err := os.MkdirTemp("", "k6deps-*")
+	if err != nil {
+		return err
+	}
+
+	defer os.RemoveAll(dir) //nolint:errcheck
+
+	err = extractArchive(dir, reader)
+	if err != nil {
+		return err
+	}
+
+	// archive should be self contained
+	opts.Script.Ignore = true
+	opts.Archive.Ignore = true
+	opts.Env.Ignore = true
+	opts.Manifest.Ignore = true
+
+	return loadMetadata(dir, opts)
 }
