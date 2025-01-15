@@ -1,4 +1,3 @@
-// source: https://github.com/grafana/xk6-sql/blob/v0.4.0/examples/sqlite3_test.js
 import sql from "k6/x/sql";
 import driver from "k6/x/sql/driver/ramsql";
 
@@ -16,10 +15,5 @@ export function teardown() {
 }
 
 export default function () {
-  db.exec("INSERT INTO namevalues (name, value) VALUES('plugin-name', 'k6-plugin-sql');");
-
-  let results = db.query("SELECT * FROM namevalues WHERE name = $1;", "plugin-name");
-  for (const row of results) {
-    console.log(`name: ${row.name}, value: ${row.value}`);
-  }
+  db.exec("INSERT INTO namevalues (name, value) VALUES('foo', 'bar');");
 }
