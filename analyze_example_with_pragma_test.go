@@ -6,7 +6,7 @@ import (
 	"github.com/grafana/k6deps"
 )
 
-const script_with_pragma = `
+const scriptWithPragma = `
 "use k6 > 0.54";
 "use k6 with k6/x/faker > 0.4.0";
 "use k6 with k6/x/sql >= 1.0.1";
@@ -23,7 +23,7 @@ func ExampleAnalyze_with_pragma() {
 	deps, _ := k6deps.Analyze(&k6deps.Options{
 		Script: k6deps.Source{
 			Name:     "script.js",
-			Contents: []byte(script_with_pragma),
+			Contents: []byte(scriptWithPragma),
 		},
 		// disable automatic source detection
 		Manifest: k6deps.Source{Ignore: true},
