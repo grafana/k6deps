@@ -14,16 +14,17 @@ func Test_New(t *testing.T) {
 	t.Parallel()
 
 	root := cmd.New()
-
 	require.Equal(t, "k6deps [flags] [script-file]", root.Use)
 
 	dir := t.TempDir()
 
 	scriptfile := filepath.Join("testdata", "script.js")
+	archive := filepath.Join("testdata", "archive.tar")
+
 	out := filepath.Clean(filepath.Join(dir, "output"))
 
+	root = cmd.New()
 	root.SetArgs([]string{"--ingnore-env", "--ignore-manifest", "-o", out, scriptfile})
-
 	err := root.Execute()
 	require.NoError(t, err)
 
@@ -31,8 +32,17 @@ func Test_New(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, `{"k6/x/faker":">v0.3.0","xk6-top":"*"}`+"\n", string(contents))
 
-	root.SetArgs([]string{"--ingnore-env", "--ignore-manifest", "--format", "json", "-o", out, scriptfile})
+	root = cmd.New()
+	root.SetArgs([]string{"--ingnore-env", "--ignore-manifest", "-o", out, archive})
+	err = root.Execute()
+	require.NoError(t, err)
 
+	contents, err = os.ReadFile(out)
+	require.NoError(t, err)
+	require.Equal(t, `{"k6":">0.54","k6/x/faker":">0.4.0","k6/x/sql":">=1.0.1","k6/x/sql/driver/ramsql":"*"}`+"\n", string(contents))
+
+	root = cmd.New()
+	root.SetArgs([]string{"--ingnore-env", "--ignore-manifest", "--format", "json", "-o", out, scriptfile})
 	err = root.Execute()
 	require.NoError(t, err)
 
@@ -40,8 +50,8 @@ func Test_New(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, `{"k6/x/faker":">v0.3.0","xk6-top":"*"}`+"\n", string(contents))
 
+	root = cmd.New()
 	root.SetArgs([]string{"--ingnore-env", "--ignore-manifest", "--format", "text", "-o", out, scriptfile})
-
 	err = root.Execute()
 	require.NoError(t, err)
 
@@ -49,8 +59,8 @@ func Test_New(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, `k6/x/faker>v0.3.0;xk6-top*`+"\n", string(contents))
 
+	root = cmd.New()
 	root.SetArgs([]string{"--ingnore-env", "--ignore-manifest", "--format", "js", "-o", out, scriptfile})
-
 	err = root.Execute()
 	require.NoError(t, err)
 
