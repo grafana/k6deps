@@ -75,7 +75,15 @@ func New() *cobra.Command {
 
 func deps(opts *options, args []string) error {
 	if len(args) > 0 {
-		opts.Script.Name = args[0]
+		filename := args[0]
+		switch filepath.Ext(filename) {
+		case ".js":
+			opts.Script.Name = filename
+		case ".tar":
+			opts.Archive.Name = filename
+		default:
+			return fmt.Errorf("unsupported file extension: %s", filepath.Ext(filename))
+		}
 	}
 
 	var out io.Writer
