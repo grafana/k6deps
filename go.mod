@@ -4,7 +4,7 @@ go 1.22
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
-	github.com/evanw/esbuild v0.24.2
+	github.com/evanw/esbuild v0.25.0
 	github.com/grafana/clireadme v0.1.0
 	github.com/grafana/k6pack v0.2.4
 	github.com/spf13/cobra v1.8.1
