@@ -2,6 +2,7 @@
 package cmd
 
 import (
+	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
@@ -36,6 +37,7 @@ const (
 
 type options struct {
 	k6deps.Options
+	input  string
 	format format
 	output string
 }
@@ -69,11 +71,13 @@ func New() *cobra.Command {
 		"ignore "+k6deps.EnvDependencies+" environment variable processing")
 	flags.BoolVar(&opts.Manifest.Ignore, "ignore-manifest", false, "disable package.json detection and processing")
 	flags.BoolVar(&opts.Script.Ignore, "ignore-script", false, "disable script processing")
-
+	flags.StringVarP(&opts.input, "input", "i", "", "input format ('js' or 'tar' for archives)")
 	return cmd
 }
 
 func deps(opts *options, args []string) error {
+	var ignoreStdin bool
+
 	if len(args) > 0 {
 		filename := args[0]
 		switch filepath.Ext(filename) {
@@ -83,6 +87,23 @@ func deps(opts *options, args []string) error {
 			opts.Archive.Name = filename
 		default:
 			return fmt.Errorf("unsupported file extension: %s", filepath.Ext(filename))
+		}
+		ignoreStdin = true
+	}
+
+	if opts.input != "" && !ignoreStdin {
+		buffer := &bytes.Buffer{}
+		buffer.ReadFrom(os.Stdin) //nolint:errcheck,forbidigo,gosec
+
+		switch opts.input {
+		case "js":
+			opts.Script.Name = "stdin"
+			opts.Script.Contents = buffer.Bytes()
+		case "tar":
+			opts.Archive.Name = "stdin"
+			opts.Archive.Contents = buffer.Bytes()
+		default:
+			return fmt.Errorf("unsupported input format: %s", opts.input)
 		}
 	}
 
