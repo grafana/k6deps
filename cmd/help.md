@@ -4,6 +4,8 @@ Analyze the k6 test script and extract the extensions that the script depends on
 
 Dependencies can come from three sources: k6 test script, manifest file, `K6_DEPENDENCIES` environment variable. Instead of these three sources, a k6 archive can also be specified, which can contain all three sources (currently two actually, because the manifest file is not yet included in the k6 archive).
 
+The name of k6 test script or archive can be specified as the positional argument in the command invocation. Alternatively, the content can be provided in the stdin. If stdin is used, the input format ('js' for script of or 'tar' for archive) must be specified using the `--input` parameter.
+
 Primarily, the k6 test script is the source of dependencies. The test script and the local and remote JavaScript modules it uses are recursively analyzed. The extensions used by the test script are collected. In addition to the require function and import expression, the `"use k6 ..."` directive can be used to specify additional extension dependencies. If necessary, the `"use k6 ..."` directive can also be used to specify version constraints.
 
     "use k6 > 0.54";
