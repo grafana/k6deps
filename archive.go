@@ -40,7 +40,7 @@ func loadMetadata(dir string, opts *Options) error {
 		opts.Env.Ignore = true
 	}
 
-	contents, err := os.ReadFile(filepath.Join(filepath.Clean(dir), "data"))
+	contents, err := os.ReadFile(opts.Script.Name)
 	if err != nil {
 		return err
 	}
