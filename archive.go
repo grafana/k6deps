@@ -60,7 +60,7 @@ type archiveMetadata struct {
 	Env      map[string]string `json:"env"`
 }
 
-//nolint:forbidigo
+//nolint:forbidigo,gocognit
 func extractArchive(dir string, input io.Reader) error {
 	reader := tar.NewReader(input)
 
@@ -101,6 +101,41 @@ func extractArchive(dir string, input io.Reader) error {
 			}
 
 			if err = file.Close(); err != nil {
+				return err
+			}
+
+		// if it is a link or symlink, we copy the content of the linked file to the target
+		// we assume the linked file was already processed and exists in the directory.
+		case tar.TypeLink, tar.TypeSymlink:
+			if ext := filepath.Ext(target); ext == ".csv" || (ext == ".json" && filepath.Base(target) != "metadata.json") {
+				continue
+			}
+
+			linkedFile := filepath.Join(dir, filepath.Clean(filepath.FromSlash(header.Linkname)))
+			source, err := os.Open(filepath.Clean(linkedFile))
+			if err != nil {
+				return err
+			}
+			defer source.Close() //nolint:errcheck
+
+			// we need to get the lined file info to create the target file with the same permissions
+			info, err := source.Stat()
+			if err != nil {
+				return err
+			}
+
+			file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, info.Mode())
+			if err != nil {
+				return err
+			}
+
+			_, err = io.Copy(file, source)
+			if err != nil {
+				return err
+			}
+
+			err = file.Close()
+			if err != nil {
 				return err
 			}
 		}
