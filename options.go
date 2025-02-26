@@ -18,10 +18,39 @@ const EnvDependencies = "K6_DEPENDENCIES"
 type Source struct {
 	// Name contains the name of the source (file, environment variable, etc.).
 	Name string
+	// Reader provides streaming access to the source content as an alternative to Contents.
+	Reader io.Reader
 	// Contents contains the content of the source (e.g. script)
 	Contents []byte
 	// Ignore disables automatic search and processing of that source.
 	Ignore bool
+}
+
+// IsEmpty returns true if the source is empty.
+func (s *Source) IsEmpty() bool {
+	return len(s.Contents) == 0 && s.Reader == nil && len(s.Name) == 0
+}
+
+func (s *Source) getReader() (io.Reader, func() error, error) {
+	if s.Reader != nil {
+		return s.Reader, nil, nil
+	}
+
+	if len(s.Contents) > 0 {
+		return bytes.NewReader(s.Contents), nil, nil
+	}
+
+	fileName, err := filepath.Abs(s.Name)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	file, err := os.Open(filepath.Clean(fileName)) //nolint:forbidigo
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return file, file.Close, nil
 }
 
 // Options contains the parameters of the dependency analysis.
@@ -70,7 +99,7 @@ func (opts *Options) lookupEnv(key string) (string, bool) {
 }
 
 func loadSources(opts *Options) error {
-	if !opts.Archive.Ignore && (len(opts.Archive.Contents) > 0 || len(opts.Archive.Name) > 0) {
+	if !opts.Archive.Ignore && !opts.Archive.IsEmpty() {
 		return loadArchive(opts)
 	}
 
@@ -188,28 +217,16 @@ func findManifest(filename string) ([]byte, string, bool, error) {
 
 //nolint:forbidigo
 func loadArchive(opts *Options) error {
-	if opts.Archive.Ignore || (len(opts.Archive.Name) == 0 && len(opts.Archive.Contents) == 0) {
+	if opts.Archive.Ignore || opts.Archive.IsEmpty() {
 		return nil
 	}
 
-	var reader io.Reader
-
-	if len(opts.Archive.Contents) == 0 {
-		archivefile, err := filepath.Abs(opts.Archive.Name)
-		if err != nil {
-			return err
-		}
-
-		file, err := os.Open(filepath.Clean(archivefile))
-		if err != nil {
-			return err
-		}
-
-		defer file.Close() //nolint:errcheck
-
-		reader = file
-	} else {
-		reader = bytes.NewReader(opts.Archive.Contents)
+	reader, closer, err := opts.Archive.getReader()
+	if err != nil {
+		return err
+	}
+	if closer != nil {
+		defer closer() //nolint:errcheck
 	}
 
 	dir, err := os.MkdirTemp("", "k6deps-*")
