@@ -60,11 +60,11 @@ type archiveMetadata struct {
 	Env      map[string]string `json:"env"`
 }
 
-//nolint:forbidigo,gocognit
+const maxFileSize = 1024 * 1024 * 10 // 10M
+
+//nolint:forbidigo
 func extractArchive(dir string, input io.Reader) error {
 	reader := tar.NewReader(input)
-
-	const maxFileSize = 1024 * 1024 * 10 // 10M
 
 	for {
 		header, err := reader.Next()
@@ -87,7 +87,7 @@ func extractArchive(dir string, input io.Reader) error {
 			}
 
 		case tar.TypeReg:
-			if ext := filepath.Ext(target); ext == ".csv" || (ext == ".json" && filepath.Base(target) != "metadata.json") {
+			if shouldSkip(target) {
 				continue
 			}
 
@@ -107,37 +107,52 @@ func extractArchive(dir string, input io.Reader) error {
 		// if it is a link or symlink, we copy the content of the linked file to the target
 		// we assume the linked file was already processed and exists in the directory.
 		case tar.TypeLink, tar.TypeSymlink:
-			if ext := filepath.Ext(target); ext == ".csv" || (ext == ".json" && filepath.Base(target) != "metadata.json") {
+			if shouldSkip(target) {
 				continue
 			}
 
 			linkedFile := filepath.Join(dir, filepath.Clean(filepath.FromSlash(header.Linkname)))
-			source, err := os.Open(filepath.Clean(linkedFile))
-			if err != nil {
-				return err
-			}
-			defer source.Close() //nolint:errcheck
-
-			// we need to get the lined file info to create the target file with the same permissions
-			info, err := source.Stat()
-			if err != nil {
-				return err
-			}
-
-			file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, info.Mode())
-			if err != nil {
-				return err
-			}
-
-			_, err = io.Copy(file, source)
-			if err != nil {
-				return err
-			}
-
-			err = file.Close()
-			if err != nil {
+			if err := followLink(linkedFile, target); err != nil {
 				return err
 			}
 		}
 	}
+}
+
+// indicates if the file should be skipped during extraction
+// we skip csv files and .json except metadata.json
+func shouldSkip(target string) bool {
+	ext := filepath.Ext(target)
+	return ext == ".csv" || (ext == ".json" && filepath.Base(target) != "metadata.json")
+}
+
+//nolint:forbidigo
+func followLink(linkedFile string, target string) error {
+	source, err := os.Open(filepath.Clean(linkedFile))
+	if err != nil {
+		return err
+	}
+	defer source.Close() //nolint:errcheck
+
+	// we need to get the lined file info to create the target file with the same permissions
+	info, err := source.Stat()
+	if err != nil {
+		return err
+	}
+
+	file, err := os.OpenFile(target, os.O_CREATE|os.O_WRONLY, info.Mode()) //nolint:gosec
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(file, source)
+	if err != nil {
+		return err
+	}
+
+	err = file.Close()
+	if err != nil {
+		return err
+	}
+	return nil
 }
