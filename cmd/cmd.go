@@ -92,16 +92,15 @@ func deps(opts *options, args []string) error {
 	}
 
 	if opts.input != "" && !ignoreStdin {
-		buffer := &bytes.Buffer{}
-		buffer.ReadFrom(os.Stdin) //nolint:errcheck,forbidigo,gosec
-
 		switch opts.input {
 		case "js":
+			buffer := &bytes.Buffer{}
+			buffer.ReadFrom(os.Stdin) //nolint:errcheck,forbidigo,gosec
 			opts.Script.Name = "stdin"
 			opts.Script.Contents = buffer.Bytes()
 		case "tar":
 			opts.Archive.Name = "stdin"
-			opts.Archive.Contents = buffer.Bytes()
+			opts.Archive.Reader = os.Stdin //nolint:forbidigo
 		default:
 			return fmt.Errorf("unsupported input format: %s", opts.input)
 		}
