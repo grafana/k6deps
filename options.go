@@ -1,7 +1,6 @@
 package k6deps
 
 import (
-	"bytes"
 	"errors"
 	"io"
 	"os"
@@ -29,28 +28,6 @@ type Source struct {
 // IsEmpty returns true if the source is empty.
 func (s *Source) IsEmpty() bool {
 	return len(s.Contents) == 0 && s.Reader == nil && len(s.Name) == 0
-}
-
-func (s *Source) getReader() (io.Reader, func() error, error) {
-	if s.Reader != nil {
-		return s.Reader, nil, nil
-	}
-
-	if len(s.Contents) > 0 {
-		return bytes.NewReader(s.Contents), nil, nil
-	}
-
-	fileName, err := filepath.Abs(s.Name)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	file, err := os.Open(filepath.Clean(fileName)) //nolint:forbidigo
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return file, file.Close, nil
 }
 
 // Options contains the parameters of the dependency analysis.
@@ -99,10 +76,6 @@ func (opts *Options) lookupEnv(key string) (string, bool) {
 }
 
 func loadSources(opts *Options) error {
-	if !opts.Archive.Ignore && !opts.Archive.IsEmpty() {
-		return loadArchive(opts)
-	}
-
 	if err := loadManifest(opts); err != nil {
 		return err
 	}
@@ -213,39 +186,4 @@ func findManifest(filename string) ([]byte, string, bool, error) {
 	}
 
 	return nil, "", false, nil
-}
-
-//nolint:forbidigo
-func loadArchive(opts *Options) error {
-	if opts.Archive.Ignore || opts.Archive.IsEmpty() {
-		return nil
-	}
-
-	reader, closer, err := opts.Archive.getReader()
-	if err != nil {
-		return err
-	}
-	if closer != nil {
-		defer closer() //nolint:errcheck
-	}
-
-	dir, err := os.MkdirTemp("", "k6deps-*")
-	if err != nil {
-		return err
-	}
-
-	defer os.RemoveAll(dir) //nolint:errcheck
-
-	err = extractArchive(dir, reader)
-	if err != nil {
-		return err
-	}
-
-	// archive should be self contained
-	opts.Script.Ignore = true
-	opts.Archive.Ignore = true
-	opts.Env.Ignore = true
-	opts.Manifest.Ignore = true
-
-	return loadMetadata(dir, opts)
 }

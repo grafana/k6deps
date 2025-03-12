@@ -43,11 +43,10 @@ func Test_analyzeArchive_Reader(t *testing.T) {
 		Archive: Source{Reader: file},
 	}
 
+	expected := &Dependencies{}
+	_ = expected.UnmarshalText([]byte(`k6>0.54;k6/x/faker>0.4.0;k6/x/sql>=1.0.1;k6/x/sql/driver/ramsql*`))
+
 	actual, err := Analyze(opts)
 	require.NoError(t, err)
-
-	expected, err := Analyze(opts)
-	require.NoError(t, err)
-
 	require.Equal(t, expected.String(), actual.String())
 }

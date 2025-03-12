@@ -1,12 +1,19 @@
 package k6deps
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"os"
+)
 
 // Analyze searches, loads and analyzes the specified sources,
 // extracting the k6 extensions and their version constraints.
 // Note: if archive is specified, the other three sources will not be taken into account,
 // since the archive may contain them.
 func Analyze(opts *Options) (Dependencies, error) {
+	if !opts.Archive.IsEmpty() {
+		return archiveAnalizer(opts.Archive)()
+	}
+
 	if err := loadSources(opts); err != nil {
 		return nil, err
 	}
@@ -83,6 +90,28 @@ func envAnalyzer(src Source) analyzer {
 		}
 
 		return filterInvalid(deps), nil
+	}
+}
+
+func archiveAnalizer(src Source) analyzer {
+	return func() (Dependencies, error) {
+		input := src.Reader
+		if input == nil {
+			tar, err := os.Open(src.Name) //nolint:forbidigo
+			if err != nil {
+				return nil, err
+			}
+			defer tar.Close() //nolint:errcheck
+
+			input = tar
+		}
+
+		analyzer, err := processArchive(input)
+		if err != nil {
+			return nil, err
+		}
+
+		return analyzer()
 	}
 }
 
