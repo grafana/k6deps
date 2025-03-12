@@ -67,7 +67,7 @@ func Test_scriptAnalyzer(t *testing.T) {
 	fn := scriptAnalyzer(src)
 	deps, err := fn()
 
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.Empty(t, deps)
 
 	src.Contents = []byte(`"use k6 with @grafana/xk6-faker>v0.3.0";`)

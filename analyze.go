@@ -1,7 +1,9 @@
 package k6deps
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 )
 
@@ -10,12 +12,26 @@ import (
 // Note: if archive is specified, the other three sources will not be taken into account,
 // since the archive may contain them.
 func Analyze(opts *Options) (Dependencies, error) {
-	if !opts.Archive.IsEmpty() {
+	if !opts.Archive.Ignore && !opts.Archive.IsEmpty() {
 		return archiveAnalizer(opts.Archive)()
 	}
 
-	if err := loadSources(opts); err != nil {
-		return nil, err
+	// if the manifest is not provided, we try to find it
+	// if not found, it will be empty and ignored by the analyzer
+	if !opts.Manifest.Ignore && opts.Manifest.IsEmpty() {
+		if err := opts.findManifest(); err != nil {
+			return nil, err
+		}
+	}
+
+	if !opts.Script.Ignore {
+		if err := loadScript(opts); err != nil {
+			return nil, err
+		}
+	}
+
+	if !opts.Env.Ignore {
+		loadEnv(opts)
 	}
 
 	return mergeAnalyzers(
@@ -44,16 +60,29 @@ func filterInvalid(from Dependencies) Dependencies {
 }
 
 func manifestAnalyzer(src Source) analyzer {
-	if len(src.Contents) == 0 {
+	if src.IsEmpty() {
 		return empty
 	}
 
 	return func() (Dependencies, error) {
+		reader, closer, err := src.contentReader()
+
+		// we tolerate the manifest file not existing
+		if errors.Is(err, os.ErrNotExist) { //nolint:forbidigo
+			return make(Dependencies), nil
+		}
+
+		if err != nil {
+			return nil, err
+		}
+		defer closer() //nolint:errcheck
+
 		var manifest struct {
 			Dependencies Dependencies `json:"dependencies,omitempty"`
 		}
 
-		if err := json.Unmarshal(src.Contents, &manifest); err != nil {
+		err = json.NewDecoder(reader).Decode(&manifest)
+		if err != nil {
 			return nil, err
 		}
 
@@ -62,14 +91,26 @@ func manifestAnalyzer(src Source) analyzer {
 }
 
 func scriptAnalyzer(src Source) analyzer {
-	if len(src.Contents) == 0 {
+	if src.IsEmpty() {
 		return empty
 	}
 
 	return func() (Dependencies, error) {
 		var deps Dependencies
 
-		if err := (&deps).UnmarshalJS(src.Contents); err != nil {
+		reader, closer, err := src.contentReader()
+		if err != nil {
+			return nil, err
+		}
+		defer closer() //nolint:errcheck
+
+		buffer := new(bytes.Buffer)
+		_, err = buffer.ReadFrom(reader)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := (&deps).UnmarshalJS(buffer.Bytes()); err != nil {
 			return nil, err
 		}
 
@@ -94,6 +135,10 @@ func envAnalyzer(src Source) analyzer {
 }
 
 func archiveAnalizer(src Source) analyzer {
+	if src.IsEmpty() {
+		return empty
+	}
+
 	return func() (Dependencies, error) {
 		input := src.Reader
 		if input == nil {
@@ -106,12 +151,7 @@ func archiveAnalizer(src Source) analyzer {
 			input = tar
 		}
 
-		analyzer, err := processArchive(input)
-		if err != nil {
-			return nil, err
-		}
-
-		return analyzer()
+		return processArchive(input)
 	}
 }
 

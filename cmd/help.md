@@ -2,7 +2,9 @@ Analyze the k6 test script and extract the extensions that the script depends on
 
 ### Sources
 
-Dependencies can come from three sources: k6 test script, manifest file, `K6_DEPENDENCIES` environment variable. Instead of these three sources, a k6 archive can also be specified, which can contain all three sources (currently two actually, because the manifest file is not yet included in the k6 archive).
+Dependencies can come from three sources: k6 test script, manifest file, `K6_DEPENDENCIES` environment variable. Instead of these three sources, a k6 archive can also be specified, which can contain all three sources (currently two actually, because the manifest file is not yet included in the k6 archive). An archive is a tar file, which can be created using the k6 archive command.
+
+> *NOTE*: It is assumed that the script and all dependencies are in the archive. No external dependencies are analyzed.
 
 The name of k6 test script or archive can be specified as the positional argument in the command invocation. Alternatively, the content can be provided in the stdin. If stdin is used, the input format ('js' for script of or 'tar' for archive) must be specified using the `--input` parameter.
 

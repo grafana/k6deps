@@ -8,101 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_loadSources(t *testing.T) {
-	t.Setenv(EnvDependencies, "k6>0.49")
-
-	opts := new(Options)
-
-	dir := filepath.Join("testdata", "foo")
-	adir, err := filepath.Abs(dir)
-
-	require.NoError(t, err)
-
-	opts.Script.Name = filepath.Join(dir, "foo.js")
-
-	err = loadSources(opts)
-
-	require.NoError(t, err)
-
-	require.Equal(t, EnvDependencies, opts.Env.Name)
-	require.Equal(t, "k6>0.49", string(opts.Env.Contents))
-
-	require.Equal(t, filepath.Join(adir, "package.json"), opts.Manifest.Name)
-	require.Contains(t, string(opts.Script.Contents), "var faker = __require(\"k6/x/faker\");")
-
-	opts = new(Options)
-
-	opts.Script.Name = filepath.Join("testdata", "bad-package", "script.js")
-
-	err = loadSources(opts)
-
-	require.Error(t, err)
-
-	opts = new(Options)
-
-	opts.Script.Name = filepath.Join("testdata", "bad.js")
-
-	err = loadSources(opts)
-
-	require.Error(t, err)
-}
-
-func Test_loadManifest(t *testing.T) {
-	t.Parallel()
-
-	opts := new(Options)
-
-	err := loadManifest(opts)
-
-	require.NoError(t, err)
-
-	require.Empty(t, opts.Manifest.Contents)
-	require.Empty(t, opts.Manifest.Name)
-
-	name := filepath.Join("testdata", "foo", "package.json")
-
-	opts.Manifest.Ignore = true
-	opts.Manifest.Name = name
-
-	err = loadManifest(opts)
-
-	require.NoError(t, err)
-	require.Empty(t, opts.Manifest.Contents)
-	require.Equal(t, name, opts.Manifest.Name)
-
-	opts.Manifest.Ignore = false
-
-	err = loadManifest(opts)
-
-	require.NoError(t, err)
-	require.Contains(t, string(opts.Manifest.Contents), "{\"dependencies\":{}}")
-
-	opts.Manifest.Name = "no such file"
-
-	err = loadManifest(opts)
-	require.NoError(t, err)
-
-	opts.Manifest.Contents = nil
-
-	err = loadManifest(opts)
-
-	require.Error(t, err)
-
-	opts.Manifest.Name = ""
-	opts.Script.Name = filepath.Join("testdata", "foo", "foo.js")
-
-	err = loadManifest(opts)
-	require.NoError(t, err)
-	require.Contains(t, string(opts.Manifest.Contents), "{\"dependencies\":{}}")
-
-	opts.Manifest.Name = ""
-	opts.Manifest.Contents = nil
-	opts.Script.Name = filepath.Join("testdata", "bad-package", "script.js")
-	err = loadManifest(opts)
-
-	require.Error(t, err)
-}
-
 func Test_loadScript(t *testing.T) {
 	t.Parallel()
 
@@ -180,8 +85,7 @@ func Test_loadEnv(t *testing.T) {
 func Test_findManifest(t *testing.T) {
 	t.Parallel()
 
-	content, name, found, err := findManifest("testdata/foo/bar/bar.js")
-
+	name, found, err := findManifest("testdata/foo/bar/bar.js")
 	require.NoError(t, err)
 	require.True(t, found)
 
@@ -189,20 +93,16 @@ func Test_findManifest(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, aname, name)
-	require.Contains(t, string(content), "{\"dependencies\":{}}")
 
-	content, name, found, err = findManifest("testdata/foo/foo.js")
+	name, found, err = findManifest("testdata/foo/foo.js")
 
 	require.NoError(t, err)
 	require.True(t, found)
 	require.Equal(t, aname, name)
-	require.Contains(t, string(content), "{\"dependencies\":{}}")
 
-	content, name, found, err = findManifest(string(filepath.Separator))
-
+	name, found, err = findManifest(string(filepath.Separator))
 	require.NoError(t, err)
 	require.False(t, found)
-	require.Nil(t, content)
 	require.Empty(t, name)
 }
 
@@ -216,7 +116,7 @@ func Test_findManifest_empty_arg(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, os.Chdir(filepath.Join("testdata", "foo", "bar")))
-	content, name, found, err := findManifest("")
+	name, found, err := findManifest("")
 
 	require.NoError(t, err)
 	require.True(t, found)
@@ -225,5 +125,4 @@ func Test_findManifest_empty_arg(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, aname, name)
-	require.Contains(t, string(content), "{\"dependencies\":{}}")
 }
