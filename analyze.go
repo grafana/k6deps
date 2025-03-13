@@ -19,7 +19,7 @@ func Analyze(opts *Options) (Dependencies, error) {
 	// if the manifest is not provided, we try to find it
 	// if not found, it will be empty and ignored by the analyzer
 	if !opts.Manifest.Ignore && opts.Manifest.IsEmpty() {
-		if err := opts.findManifest(); err != nil {
+		if err := opts.setManifest(); err != nil {
 			return nil, err
 		}
 	}

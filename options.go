@@ -144,7 +144,9 @@ func loadEnv(opts *Options) {
 	opts.Env.Contents = []byte(value)
 }
 
-func (opts *Options) findManifest() error {
+func (opts *Options) setManifest() error {
+	// if the manifest is not provided, we try to find it
+	// starting from the location of the script
 	path, found, err := findManifest(opts.Script.Name)
 	if err != nil {
 		return err
