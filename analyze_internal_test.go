@@ -1,6 +1,7 @@
 package k6deps
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,7 @@ func Test_manifestAnalyzer(t *testing.T) {
 func Test_scriptAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	src := Source{Name: "script.js"}
+	src := Source{Name: filepath.Join(t.TempDir(), "script.js")}
 	fn := scriptAnalyzer(src)
 	deps, err := fn()
 
