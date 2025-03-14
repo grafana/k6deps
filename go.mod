@@ -1,7 +1,6 @@
 module github.com/grafana/k6deps
 
-go 1.22
-toolchain go1.24.1
+go 1.23.0
 
 require (
 	github.com/Masterminds/semver/v3 v3.3.1
