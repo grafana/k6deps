@@ -1,6 +1,7 @@
 package k6deps
 
 import (
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -63,11 +64,11 @@ func Test_manifestAnalyzer(t *testing.T) {
 func Test_scriptAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	src := Source{Name: "script.js"}
+	src := Source{Name: filepath.Join(t.TempDir(), "script.js")}
 	fn := scriptAnalyzer(src)
 	deps, err := fn()
 
-	require.NoError(t, err)
+	require.Error(t, err)
 	require.Empty(t, deps)
 
 	src.Contents = []byte(`"use k6 with @grafana/xk6-faker>v0.3.0";`)

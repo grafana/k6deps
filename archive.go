@@ -2,7 +2,6 @@ package k6deps
 
 import (
 	"archive/tar"
-	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -17,17 +16,16 @@ type archiveMetadata struct {
 
 const maxFileSize = 1024 * 1024 * 10 // 10M
 
-func processArchive(input io.Reader) (analyzer, error) {
+func processArchive(input io.Reader) (Dependencies, error) {
 	reader := tar.NewReader(input)
 
-	analyzers := make([]analyzer, 0)
-
+	deps := Dependencies{}
 	for {
 		header, err := reader.Next()
 
 		switch {
 		case errors.Is(err, io.EOF):
-			return mergeAnalyzers(analyzers...), nil
+			return deps, nil
 		case err != nil:
 			return nil, err
 		case header == nil:
@@ -38,29 +36,37 @@ func processArchive(input io.Reader) (analyzer, error) {
 			continue
 		}
 
-		content := &bytes.Buffer{}
-		if _, err := io.CopyN(content, reader, maxFileSize); err != nil && !errors.Is(err, io.EOF) {
-			return nil, err
-		}
-
 		// if the file is metadata.json, we extract the dependencies from the env
 		if header.Name == "metadata.json" {
-			analyzer, err := analizeMetadata(content.Bytes())
+			d, err := analizeMetadata(reader)
 			if err != nil {
 				return nil, err
 			}
-			analyzers = append(analyzers, analyzer)
+
+			err = deps.Merge(d)
+			if err != nil {
+				return nil, err
+			}
 			continue
 		}
 
 		// analize the file content as an script
 		target := filepath.Clean(filepath.FromSlash(header.Name))
 		src := Source{
-			Name:     target,
-			Contents: content.Bytes(),
+			Name:   target,
+			Reader: io.LimitReader(reader, maxFileSize),
 		}
 
-		analyzers = append(analyzers, scriptAnalyzer(src))
+		d, err := scriptAnalyzer(src)()
+		if err != nil {
+			return nil, err
+		}
+
+		err = deps.Merge(d)
+		if err != nil {
+			return nil, err
+		}
+		continue
 	}
 }
 
@@ -71,9 +77,9 @@ func shouldProcess(target string) bool {
 }
 
 // analizeMetadata extracts the dependencies from the metadata.json file
-func analizeMetadata(content []byte) (analyzer, error) {
+func analizeMetadata(input io.Reader) (Dependencies, error) {
 	metadata := archiveMetadata{}
-	if err := json.Unmarshal(content, &metadata); err != nil {
+	if err := json.NewDecoder(input).Decode(&metadata); err != nil {
 		return nil, err
 	}
 
@@ -82,8 +88,9 @@ func analizeMetadata(content []byte) (analyzer, error) {
 			Name:     EnvDependencies,
 			Contents: []byte(value),
 		}
-		return envAnalyzer(src), nil
+
+		return envAnalyzer(src)()
 	}
 
-	return empty, nil
+	return Dependencies{}, nil
 }
