@@ -12,10 +12,6 @@ import (
 	"github.com/grafana/k6deps/internal/pack/plugins/k6"
 )
 
-type metafile struct {
-	K6 *k6.Metadata `json:"k6,omitempty"`
-}
-
 // Metadata holds k6 related metadata, emitted under "k6" key of Metafile.
 type Metadata struct {
 	// Imports contains a list of k6 imports (core modules and extensions).
@@ -36,14 +32,6 @@ type PackOptions struct {
 	SourceRoot string
 }
 
-func (o *PackOptions) setDefaults() *PackOptions {
-	if !o.TypeScript {
-		o.TypeScript = filepath.Ext(o.Filename) == ".ts"
-	}
-
-	return o
-}
-
 func (o *PackOptions) stdinOptions(contents string) *api.StdinOptions {
 	dir := filepath.Dir(o.Filename)
 	base := filepath.Base(o.Filename)
@@ -60,7 +48,7 @@ func (o *PackOptions) stdinOptions(contents string) *api.StdinOptions {
 }
 
 func (o *PackOptions) loaderType() api.Loader {
-	if o.TypeScript {
+	if o.TypeScript || filepath.Ext(o.Filename) == ".ts" {
 		return api.LoaderTS
 	}
 
@@ -70,8 +58,6 @@ func (o *PackOptions) loaderType() api.Loader {
 // Pack gathers dependencies and transforms TypeScript/JavaScript sources into single k6 compatible JavaScript test
 // script.
 func Pack(source string, opts *PackOptions) ([]byte, *Metadata, error) {
-	opts.setDefaults()
-
 	result := api.Build(api.BuildOptions{ //nolint:exhaustruct
 		Stdin:      opts.stdinOptions(source),
 		Bundle:     true,
@@ -87,18 +73,27 @@ func Pack(source string, opts *PackOptions) ([]byte, *Metadata, error) {
 		return nil, nil, err
 	}
 
-	var meta metafile
-
-	err := json.Unmarshal([]byte(result.Metafile), &meta)
+	metadata, err := parseMetadata(result.Metafile)
 	if err != nil {
-		return nil, nil, wrapError(err)
-	}
-
-	metadata := &Metadata{
-		Imports: meta.K6.Imports,
+		return nil, nil, err
 	}
 
 	return result.OutputFiles[0].Contents, metadata, nil
+}
+
+func parseMetadata(metafile string) (*Metadata, error) {
+	var k6meta struct {
+		K6 *k6.Metadata `json:"k6,omitempty"`
+	}
+
+	err := json.Unmarshal([]byte(metafile), &k6meta)
+	if err != nil {
+		return nil, wrapError(err)
+	}
+
+	return &Metadata{
+		Imports: k6meta.K6.Imports,
+	}, nil
 }
 
 func checkError(result *api.BuildResult) (bool, error) {
