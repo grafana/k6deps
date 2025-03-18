@@ -31,8 +31,6 @@ type PackOptions struct {
 	Directory  string
 	Filename   string
 	Timeout    time.Duration
-	SourceMap  bool
-	Minify     bool
 	TypeScript bool
 	Externals  []string
 	SourceRoot string
@@ -69,31 +67,20 @@ func (o *PackOptions) loaderType() api.Loader {
 	return api.LoaderJS
 }
 
-func (o *PackOptions) sourceMapType() api.SourceMap {
-	if o.SourceMap {
-		return api.SourceMapInline
-	}
-
-	return api.SourceMapNone
-}
-
 // Pack gathers dependencies and transforms TypeScript/JavaScript sources into single k6 compatible JavaScript test
 // script.
 func Pack(source string, opts *PackOptions) ([]byte, *Metadata, error) {
 	opts.setDefaults()
 
 	result := api.Build(api.BuildOptions{ //nolint:exhaustruct
-		Stdin:             opts.stdinOptions(source),
-		Bundle:            true,
-		MinifyWhitespace:  opts.Minify,
-		MinifyIdentifiers: opts.Minify,
-		MinifySyntax:      opts.Minify,
-		LogLevel:          api.LogLevelSilent,
-		Sourcemap:         opts.sourceMapType(),
-		SourceRoot:        opts.SourceRoot,
-		Plugins:           []api.Plugin{http.New(), k6.New()},
-		External:          opts.Externals,
-		Metafile:          true,
+		Stdin:      opts.stdinOptions(source),
+		Bundle:     true,
+		LogLevel:   api.LogLevelSilent,
+		Sourcemap:  api.SourceMapNone,
+		SourceRoot: opts.SourceRoot,
+		Plugins:    []api.Plugin{http.New(), k6.New()},
+		External:   opts.Externals,
+		Metafile:   true,
 	})
 
 	if has, err := checkError(&result); has {
