@@ -1,4 +1,6 @@
-package k6deps
+// Package pack implements the functionality to analize a script and all its dependencies
+// Code adapted from github.com/grafana/k6pack
+package pack
 
 import (
 	"encoding/json"
@@ -22,8 +24,8 @@ type packError struct {
 	messages []api.Message
 }
 
-// PackOptions used to specify transform/build options.
-type PackOptions struct {
+// Options used to specify transform/build options.
+type Options struct {
 	Directory  string
 	Filename   string
 	Timeout    time.Duration
@@ -32,7 +34,7 @@ type PackOptions struct {
 	SourceRoot string
 }
 
-func (o *PackOptions) stdinOptions(contents string) *api.StdinOptions {
+func (o *Options) stdinOptions(contents string) *api.StdinOptions {
 	dir := filepath.Dir(o.Filename)
 	base := filepath.Base(o.Filename)
 	if base == "." { // empty filename = stdin
@@ -47,7 +49,7 @@ func (o *PackOptions) stdinOptions(contents string) *api.StdinOptions {
 	}
 }
 
-func (o *PackOptions) loaderType() api.Loader {
+func (o *Options) loaderType() api.Loader {
 	if o.TypeScript || filepath.Ext(o.Filename) == ".ts" {
 		return api.LoaderTS
 	}
@@ -57,7 +59,7 @@ func (o *PackOptions) loaderType() api.Loader {
 
 // Pack gathers dependencies and transforms TypeScript/JavaScript sources into single k6 compatible JavaScript test
 // script.
-func Pack(source string, opts *PackOptions) ([]byte, *Metadata, error) {
+func Pack(source string, opts *Options) ([]byte, *Metadata, error) {
 	result := api.Build(api.BuildOptions{ //nolint:exhaustruct
 		Stdin:      opts.stdinOptions(source),
 		Bundle:     true,

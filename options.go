@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/grafana/k6deps/internal/pack"
 )
 
 // EnvDependencies holds the name of the environment variable thet describes additional dependencies.
@@ -112,7 +114,7 @@ func loadScript(opts *Options) error {
 		return err
 	}
 
-	script, _, err := Pack(string(contents), &PackOptions{Filename: scriptfile})
+	script, _, err := pack.Pack(string(contents), &pack.Options{Filename: scriptfile})
 	if err != nil {
 		return err
 	}
