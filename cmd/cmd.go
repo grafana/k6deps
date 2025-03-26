@@ -81,7 +81,7 @@ func deps(opts *options, args []string) error {
 	if len(args) > 0 {
 		filename := args[0]
 		switch filepath.Ext(filename) {
-		case ".js":
+		case ".js", ".ts":
 			opts.Script.Name = filename
 		case ".tar":
 			opts.Archive.Name = filename
@@ -93,7 +93,7 @@ func deps(opts *options, args []string) error {
 
 	if opts.input != "" && !ignoreStdin {
 		switch opts.input {
-		case "js":
+		case "js", "ts":
 			buffer := &bytes.Buffer{}
 			buffer.ReadFrom(os.Stdin) //nolint:errcheck,forbidigo,gosec
 			opts.Script.Name = "stdin"
