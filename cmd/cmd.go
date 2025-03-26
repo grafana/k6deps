@@ -71,7 +71,7 @@ func New() *cobra.Command {
 		"ignore "+k6deps.EnvDependencies+" environment variable processing")
 	flags.BoolVar(&opts.Manifest.Ignore, "ignore-manifest", false, "disable package.json detection and processing")
 	flags.BoolVar(&opts.Script.Ignore, "ignore-script", false, "disable script processing")
-	flags.StringVarP(&opts.input, "input", "i", "", "input format ('js' or 'tar' for archives)")
+	flags.StringVarP(&opts.input, "input", "i", "", "input format ('js', 'ts' or 'tar' for archives)")
 	return cmd
 }
 
