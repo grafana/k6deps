@@ -158,6 +158,8 @@ func Test_Dependencies_UnmarshalJS(t *testing.T) {
 import "k6/x/dumber";
 import hello from "k6/x/hello"
 import bar from "k6/x/foo/bar";
+//import baz from "k6/x/baz";
+/* import baz from "k6/x/baz"; */
 let dumb = require("k6/x/dumb");
 `))
 	require.NoError(t, err)
@@ -169,6 +171,7 @@ let dumb = require("k6/x/dumb");
 	require.Equal(t, "k6/x/dumber*", deps["k6/x/dumber"].String())
 	require.Equal(t, "k6/x/hello*", deps["k6/x/hello"].String())
 	require.Equal(t, "k6/x/foo/bar*", deps["k6/x/foo/bar"].String())
+	require.Nil(t, deps["k6/x/baz"]) // baz should had been ignored (is commented)
 
 	err = deps.UnmarshalJS([]byte(`"use k6 with k6/x/foo>v0.1.0";
 "use k6 with k6/x/dumb>v0.4.0";
