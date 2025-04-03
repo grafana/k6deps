@@ -12,7 +12,7 @@ import (
 //nolint:gochecknoglobals
 var (
 	// matches any sequence of characters enclosed by '/*' and '*/' including new lines and '*' not followed by '/'
-	reMultiLineComment = regexp.MustCompile(`\/\*(?:[^\*]|\*[^\/]|\n)*\*\/`)
+	reMultiLineComment = regexp.MustCompile(`\/\*(?:[^\*]|\*[^\/]|\n)*(\*)+\/`)
 	// matches '//' and any character until end of line skips the '//' sequence in urls (preceded by ':')
 	reCommentLine = regexp.MustCompile(`(^|\s|[^:])(//.*)`)
 
