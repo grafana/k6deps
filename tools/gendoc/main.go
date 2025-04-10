@@ -4,8 +4,8 @@ package main
 import (
 	_ "embed"
 
-	"github.com/grafana/clireadme"
 	"github.com/grafana/k6deps/cmd"
+	"github.com/grafana/k6deps/internal/clireadme"
 )
 
 func main() {
