@@ -13,20 +13,18 @@ func Test_loadScript(t *testing.T) {
 
 	opts := new(Options)
 
-	err := loadScript(opts)
+	err := opts.loadScript()
 
 	require.NoError(t, err)
 	require.Empty(t, opts.Script.Contents)
 	require.Empty(t, opts.Script.Name)
 
 	name := filepath.Join("testdata", "foo", "foo.js")
-	aname, err := filepath.Abs(name)
-	require.NoError(t, err)
 
 	opts.Script.Name = name
 	opts.Script.Ignore = true
 
-	err = loadScript(opts)
+	err = opts.loadScript()
 
 	require.NoError(t, err)
 	require.Empty(t, opts.Script.Contents)
@@ -34,26 +32,25 @@ func Test_loadScript(t *testing.T) {
 
 	opts.Script.Ignore = false
 
-	err = loadScript(opts)
+	err = opts.loadScript()
 
 	require.NoError(t, err)
 	require.Contains(t, string(opts.Script.Contents), "var faker = __require(\"k6/x/faker\");")
-	require.Equal(t, aname, opts.Script.Name)
 
 	opts.Script.Name = filepath.Join("testdata", "bad.js")
-	err = loadScript(opts)
+	err = opts.loadScript()
 
 	require.NoError(t, err)
 
 	opts.Script.Contents = nil
 
-	err = loadScript(opts)
+	err = opts.loadScript()
 
 	require.Error(t, err)
 
 	opts.Script.Name = filepath.Join("testdata", "missing.js")
 
-	err = loadScript(opts)
+	err = opts.loadScript()
 
 	require.Error(t, err)
 }

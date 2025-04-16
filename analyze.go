@@ -25,7 +25,7 @@ func Analyze(opts *Options) (Dependencies, error) {
 	}
 
 	if !opts.Script.Ignore {
-		if err := loadScript(opts); err != nil {
+		if err := opts.loadScript(); err != nil {
 			return nil, err
 		}
 	}
