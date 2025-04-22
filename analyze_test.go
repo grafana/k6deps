@@ -43,3 +43,26 @@ func Test_Analyze(t *testing.T) {
 	_, err = k6deps.Analyze(opts)
 	require.Error(t, err)
 }
+
+const (
+	fakerJs = `
+import { Faker } from "k6/x/faker";
+
+const faker = new Faker(11);
+
+export default function () {
+  console.log(faker.person.firstName());
+}
+`
+
+	scriptJS = `
+"use k6 with k6/x/faker > 0.4.0";
+
+import faker from "./faker.js";
+
+export default () => {
+  faker();
+};
+`
+)
+

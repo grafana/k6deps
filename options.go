@@ -4,14 +4,20 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 
 	"github.com/grafana/k6deps/internal/pack"
 )
 
-// EnvDependencies holds the name of the environment variable thet describes additional dependencies.
-const EnvDependencies = "K6_DEPENDENCIES"
+const (
+	// EnvDependencies holds the name of the environment variable that describes additional dependencies.
+	EnvDependencies = "K6_DEPENDENCIES"
+
+	// ManifestFileName is the name of the manifest file
+	ManifestFileName = "package.json"
+)
 
 // Source describes a generic dependency source.
 // Such a source can be the k6 script, the manifest file, or an environment variable (e.g. K6_DEPENDENCIES).
@@ -81,14 +87,15 @@ type Options struct {
 	Env Source
 	// LookupEnv function is used to query the value of the environment variable
 	// specified in the Env option Name if the Contents of the Env option is empty.
-	// If empty, os.LookupEnv will be used.
+	// If not provided, os.LookupEnv will be used.
 	LookupEnv func(key string) (value string, ok bool)
-	// FindManifest function is used to find manifest file for the given script file
-	// if the Contents of Manifest option is empty.
-	// If the scriptfile parameter is empty, FindManifest starts searching
-	// for the manifest file from the current directory
-	// If missing, the closest manifest file will be used.
-	FindManifest func(scriptfile string) (filename string, ok bool, err error)
+	// FindManifest function is used to find manifest if the path is not set explicitly in the options.
+	// If not provided a default function is used. This function starts at the path to the script and traverses it
+	// upwards until a manifest is found.
+	// If the scriptPath parameter is empty, it starts searching from the manifest file from the current directory
+	FindManifest func(scriptPath string) (filename string, ok bool, err error)
+	// Fs is the file system to use for accessing files. If not provided, os file system is used
+	Fs fs.FS
 }
 
 func (opts *Options) lookupEnv(key string) (string, bool) {
@@ -99,27 +106,30 @@ func (opts *Options) lookupEnv(key string) (string, bool) {
 	return os.LookupEnv(key) //nolint:forbidigo
 }
 
+// returns the FS to use with this options
+func (opts *Options) fs() fs.FS {
+	if opts.Fs != nil {
+		return opts.Fs
+	}
+
+	return os.DirFS(".") //nolint:forbidigo
+}
+
 func loadScript(opts *Options) error {
 	if len(opts.Script.Name) == 0 || len(opts.Script.Contents) > 0 || opts.Script.Ignore {
 		return nil
 	}
 
-	scriptfile, err := filepath.Abs(opts.Script.Name)
+	contents, err := fs.ReadFile(opts.fs(), opts.Script.Name)
 	if err != nil {
 		return err
 	}
 
-	contents, err := os.ReadFile(scriptfile) //nolint:forbidigo,gosec
+	script, _, err := pack.Pack(string(contents), &pack.Options{Filename: opts.Script.Name})
 	if err != nil {
 		return err
 	}
 
-	script, _, err := pack.Pack(string(contents), &pack.Options{Filename: scriptfile})
-	if err != nil {
-		return err
-	}
-
-	opts.Script.Name = scriptfile
 	opts.Script.Contents = script
 
 	return nil
@@ -147,7 +157,12 @@ func loadEnv(opts *Options) {
 func (opts *Options) setManifest() error {
 	// if the manifest is not provided, we try to find it
 	// starting from the location of the script
-	path, found, err := findManifest(opts.Script.Name)
+	findManifest := opts.FindManifest
+	if findManifest == nil {
+		findManifest = opts.findManifest
+	}
+
+	path, found, err := findManifest(filepath.Dir(opts.Script.Name))
 	if err != nil {
 		return err
 	}
@@ -158,26 +173,24 @@ func (opts *Options) setManifest() error {
 	return nil
 }
 
-func findManifest(filename string) (string, bool, error) {
-	if len(filename) == 0 {
-		filename = "any_file"
-	}
+// looks for a package.json file
+func (opts *Options) findManifest(basePath string) (string, bool, error) {
+	manifestPath := ManifestFileName
 
-	abs, err := filepath.Abs(filename)
-	if err != nil {
+	for {
+		searchPath := filepath.Join(basePath, manifestPath)
+
+		_, err := fs.Stat(opts.fs(), searchPath)
+		if err == nil {
+			return searchPath, true, nil
+		}
+		if errors.Is(err, fs.ErrNotExist) {
+			manifestPath = filepath.Join("../", manifestPath)
+			continue
+		}
+		if errors.Is(err, fs.ErrInvalid) {
+			return "", false, nil
+		}
 		return "", false, err
 	}
-
-	for dir := filepath.Dir(abs); ; dir = filepath.Dir(dir) {
-		filename := filepath.Clean(filepath.Join(dir, "package.json"))
-		if _, err := os.Stat(filename); !errors.Is(err, os.ErrNotExist) { //nolint:forbidigo
-			return filename, err == nil, err
-		}
-
-		if dir[len(dir)-1] == filepath.Separator {
-			break
-		}
-	}
-
-	return "", false, nil
 }
