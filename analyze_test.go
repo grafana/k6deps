@@ -2,6 +2,7 @@ package k6deps_test
 
 import (
 	"testing"
+	"testing/fstest"
 
 	"github.com/grafana/k6deps"
 	"github.com/stretchr/testify/require"
@@ -66,3 +67,33 @@ export default () => {
 `
 )
 
+func Test_AnalyzeFS(t *testing.T) {
+	t.Parallel()
+
+	opts := &k6deps.Options{
+		Script: k6deps.Source{
+			Name: "script.js",
+		},
+		Fs: fstest.MapFS{
+			"script.js": &fstest.MapFile{
+				Data: []byte(scriptJS),
+				Mode: 0o644,
+			},
+			"faker.js": &fstest.MapFile{
+				Data: []byte(fakerJs),
+				Mode: 0o644,
+			},
+		},
+		Manifest: k6deps.Source{
+			// find manifest enters a loop because MapFS does not have a root directory and
+			// traversal using "../" has no limit
+			Ignore: true,
+		},
+	}
+
+	deps, err := k6deps.Analyze(opts)
+
+	require.NoError(t, err)
+	require.Len(t, deps, 1)
+	require.Equal(t, deps["k6/x/faker"].Constraints.String(), ">0.4.0")
+}

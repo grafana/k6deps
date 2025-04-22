@@ -125,7 +125,7 @@ func loadScript(opts *Options) error {
 		return err
 	}
 
-	script, _, err := pack.Pack(string(contents), &pack.Options{Filename: opts.Script.Name})
+	script, _, err := pack.Pack(string(contents), &pack.Options{FS: opts.fs(), Filename: opts.Script.Name})
 	if err != nil {
 		return err
 	}

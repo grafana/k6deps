@@ -4,12 +4,15 @@ package pack
 
 import (
 	"encoding/json"
+	"io/fs"
+	"os"
 	"path/filepath"
 	"text/scanner"
 	"time"
 
 	"github.com/evanw/esbuild/pkg/api"
 
+	"github.com/grafana/k6deps/internal/pack/plugins/file"
 	"github.com/grafana/k6deps/internal/pack/plugins/http"
 	"github.com/grafana/k6deps/internal/pack/plugins/k6"
 )
@@ -26,6 +29,7 @@ type packError struct {
 
 // Options used to specify transform/build options.
 type Options struct {
+	FS         fs.FS
 	Directory  string
 	Filename   string
 	Timeout    time.Duration
@@ -57,18 +61,37 @@ func (o *Options) loaderType() api.Loader {
 	return api.LoaderJS
 }
 
+//nolint:forbidigo
+func (o *Options) fs() fs.FS {
+	if o.FS != nil {
+		return o.FS
+	}
+
+	if len(o.Directory) > 0 {
+		return os.DirFS(o.Directory)
+	}
+
+	wdir, err := os.Getwd()
+	if err != nil {
+		// FIXME: add a way to return error
+		panic(err)
+	}
+	return os.DirFS(wdir)
+}
+
 // Pack gathers dependencies and transforms TypeScript/JavaScript sources into single k6 compatible JavaScript test
 // script.
 func Pack(source string, opts *Options) ([]byte, *Metadata, error) {
 	result := api.Build(api.BuildOptions{ //nolint:exhaustruct
-		Stdin:      opts.stdinOptions(source),
-		Bundle:     true,
-		LogLevel:   api.LogLevelSilent,
-		Sourcemap:  api.SourceMapNone,
-		SourceRoot: opts.SourceRoot,
-		Plugins:    []api.Plugin{http.New(), k6.New()},
-		External:   opts.Externals,
-		Metafile:   true,
+		Stdin:         opts.stdinOptions(source),
+		Bundle:        true,
+		LogLevel:      api.LogLevelSilent,
+		Sourcemap:     api.SourceMapNone,
+		SourceRoot:    opts.SourceRoot,
+		Plugins:       []api.Plugin{http.New(), k6.New(), file.New(opts.fs())},
+		External:      opts.Externals,
+		Metafile:      true,
+		AbsWorkingDir: "/",
 	})
 
 	if has, err := checkError(&result); has {
