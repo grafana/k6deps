@@ -1,7 +1,6 @@
 package k6deps
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -20,7 +19,6 @@ func Test_loadScript(t *testing.T) {
 	require.Empty(t, opts.Script.Name)
 
 	name := filepath.Join("testdata", "foo", "foo.js")
-	aname, err := filepath.Abs(name)
 	require.NoError(t, err)
 
 	opts.Script.Name = name
@@ -38,7 +36,6 @@ func Test_loadScript(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Contains(t, string(opts.Script.Contents), "var faker = __require(\"k6/x/faker\");")
-	require.Equal(t, aname, opts.Script.Name)
 
 	opts.Script.Name = filepath.Join("testdata", "bad.js")
 	err = loadScript(opts)
@@ -85,44 +82,22 @@ func Test_loadEnv(t *testing.T) {
 func Test_findManifest(t *testing.T) {
 	t.Parallel()
 
-	name, found, err := findManifest("testdata/foo/bar/bar.js")
+	opts := new(Options)
+
+	expected := filepath.Join("testdata", "foo", "package.json")
+
+	path, found, err := opts.findManifest(filepath.Join("testdata", "foo", "bar"))
 	require.NoError(t, err)
 	require.True(t, found)
+	require.Equal(t, expected, path)
 
-	aname, err := filepath.Abs(filepath.Join("testdata", "foo", "package.json"))
-
-	require.NoError(t, err)
-	require.Equal(t, aname, name)
-
-	name, found, err = findManifest("testdata/foo/foo.js")
-
+	path, found, err = opts.findManifest(filepath.Join("testdata", "foo"))
 	require.NoError(t, err)
 	require.True(t, found)
-	require.Equal(t, aname, name)
+	require.Equal(t, expected, path)
 
-	name, found, err = findManifest(string(filepath.Separator))
+	path, found, err = opts.findManifest("")
 	require.NoError(t, err)
 	require.False(t, found)
-	require.Empty(t, name)
-}
-
-//nolint:forbidigo,paralleltest
-func Test_findManifest_empty_arg(t *testing.T) {
-	pwd, err := os.Getwd()
-	defer func() {
-		require.NoError(t, os.Chdir(pwd))
-	}()
-
-	require.NoError(t, err)
-
-	require.NoError(t, os.Chdir(filepath.Join("testdata", "foo", "bar")))
-	name, found, err := findManifest("")
-
-	require.NoError(t, err)
-	require.True(t, found)
-
-	aname := filepath.Join(pwd, "testdata", "foo", "package.json")
-
-	require.NoError(t, err)
-	require.Equal(t, aname, name)
+	require.Empty(t, path)
 }
