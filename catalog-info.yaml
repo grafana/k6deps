@@ -6,7 +6,6 @@ metadata:
   description: |
     The goal of k6deps is to extract dependencies from k6 test scripts. For this purpose, k6deps analyzes the k6 test scripts and the modules imported from it in a recursive manner.
   annotations:
-    backstage.io/techdocs-ref: dir:.
     github.com/project-slug: grafana/k6deps
 spec:
   type: tool
