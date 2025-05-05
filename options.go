@@ -99,27 +99,41 @@ func (opts *Options) lookupEnv(key string) (string, bool) {
 	return os.LookupEnv(key) //nolint:forbidigo
 }
 
-func loadScript(opts *Options) error {
-	if len(opts.Script.Name) == 0 || len(opts.Script.Contents) > 0 || opts.Script.Ignore {
+// loadScript loads a script Source and alls its dependencies into the Script's content
+// from either a file of a reader
+func (opts *Options) loadScript() error {
+	var err error
+	if opts.Script.Ignore || opts.Script.IsEmpty() {
 		return nil
 	}
 
-	scriptfile, err := filepath.Abs(opts.Script.Name)
+	if len(opts.Script.Contents) != 0 {
+		return nil
+	}
+
+	source := opts.Script.Reader
+	if source == nil {
+		scriptfile, err := filepath.Abs(opts.Script.Name)
+		if err != nil {
+			return err
+		}
+		source, err = os.Open(scriptfile) //nolint:forbidigo,gosec
+		if err != nil {
+			return err
+		}
+	}
+
+	contents := &bytes.Buffer{}
+	_, err = contents.ReadFrom(source)
 	if err != nil {
 		return err
 	}
 
-	contents, err := os.ReadFile(scriptfile) //nolint:forbidigo,gosec
+	script, _, err := pack.Pack(contents.String(), &pack.Options{Filename: opts.Script.Name})
 	if err != nil {
 		return err
 	}
 
-	script, _, err := pack.Pack(string(contents), &pack.Options{Filename: scriptfile})
-	if err != nil {
-		return err
-	}
-
-	opts.Script.Name = scriptfile
 	opts.Script.Contents = script
 
 	return nil
