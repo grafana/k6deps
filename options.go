@@ -2,10 +2,8 @@ package k6deps
 
 import (
 	"bytes"
-	"errors"
 	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/grafana/k6deps/internal/pack"
 )
@@ -58,12 +56,6 @@ type Options struct {
 	// specified in the Env option Name if the Contents of the Env option is empty.
 	// If not provided, os.LookupEnv will be used.
 	LookupEnv func(key string) (value string, ok bool)
-	// FindManifest function is used to find manifest file for the given script file
-	// if the Contents of Manifest option is empty.
-	// If the scriptfile parameter is empty, FindManifest starts searching
-	// for the manifest file from the current directory
-	// If missing, the closest manifest file will be used.
-	FindManifest func(scriptfile string) (filename string, ok bool, err error)
 }
 
 func (opts *Options) lookupEnv(key string) (string, bool) {
@@ -126,50 +118,12 @@ func (opts *Options) scriptAnalyzer() (analyzer, error) {
 }
 
 func (opts *Options) manifestAnalyzer() (analyzer, error) {
-	if opts.Manifest.IsEmpty() {
-		manifest, found, err := opts.findManifest()
-		if err != nil {
-			return nil, err
-		}
-		if found {
-			opts.Manifest.Name = manifest
-		}
-	}
 	source, err := opts.loadSource(&opts.Manifest)
 	if err != nil {
 		return nil, err
 	}
 
 	return newManifestAnalyzer(source), nil
-}
-
-func (opts *Options) findManifest() (string, bool, error) {
-	if opts.FindManifest != nil {
-		return opts.FindManifest(opts.Script.Name)
-	}
-
-	filename := opts.Script.Name
-	if len(filename) == 0 {
-		filename = "any_file"
-	}
-
-	abs, err := filepath.Abs(filename)
-	if err != nil {
-		return "", false, err
-	}
-
-	for dir := filepath.Dir(abs); ; dir = filepath.Dir(dir) {
-		filename := filepath.Clean(filepath.Join(dir, "package.json"))
-		if _, err := os.Stat(filename); !errors.Is(err, os.ErrNotExist) { //nolint:forbidigo
-			return filename, err == nil, err
-		}
-
-		if dir[len(dir)-1] == filepath.Separator {
-			break
-		}
-	}
-
-	return "", false, nil
 }
 
 func (opts *Options) archiveAnalyzer() (analyzer, error) {

@@ -1,7 +1,6 @@
 package k6deps
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -149,58 +148,4 @@ func TestOptionsManifestAnalyzer(t *testing.T) {
 	manifestAnalyzer, err = opts.manifestAnalyzer()
 	require.Error(t, err)
 	require.Nil(t, manifestAnalyzer)
-}
-
-func TestFindManifest(t *testing.T) {
-	t.Parallel()
-
-	opts := new(Options)
-	opts.Script.Name = "testdata/foo/bar/bar.js"
-	name, found, err := opts.findManifest()
-	require.NoError(t, err)
-	require.True(t, found)
-
-	aname, err := filepath.Abs(filepath.Join("testdata", "foo", "package.json"))
-
-	require.NoError(t, err)
-	require.Equal(t, aname, name)
-
-	opts = new(Options)
-	opts.Script.Name = "testdata/foo/foo.js"
-	name, found, err = opts.findManifest()
-
-	require.NoError(t, err)
-	require.True(t, found)
-	require.Equal(t, aname, name)
-
-	opts = new(Options)
-	opts.Script.Name = string(filepath.Separator)
-	name, found, err = opts.findManifest()
-	require.NoError(t, err)
-	require.False(t, found)
-	require.Empty(t, name)
-}
-
-//nolint:forbidigo,paralleltest
-func TestFindManifesEmptyArg(t *testing.T) {
-	pwd, err := os.Getwd()
-	defer func() {
-		require.NoError(t, os.Chdir(pwd))
-	}()
-
-	require.NoError(t, err)
-
-	require.NoError(t, os.Chdir(filepath.Join("testdata", "foo", "bar")))
-
-	opts := new(Options)
-	opts.Script.Name = ""
-	name, found, err := opts.findManifest()
-
-	require.NoError(t, err)
-	require.True(t, found)
-
-	aname := filepath.Join(pwd, "testdata", "foo", "package.json")
-
-	require.NoError(t, err)
-	require.Equal(t, aname, name)
 }
