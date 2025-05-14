@@ -2,6 +2,7 @@ package k6deps_test
 
 import (
 	"testing"
+	"testing/fstest"
 
 	"github.com/grafana/k6deps"
 	"github.com/stretchr/testify/require"
@@ -42,4 +43,52 @@ func TestAnalyzeContents(t *testing.T) {
 	opts.Script.Contents = []byte(`"use k6 with k6/x/faker>>1.0";`)
 	_, err = k6deps.Analyze(opts)
 	require.Error(t, err)
+}
+
+const (
+	fakerJs = `
+import { Faker } from "k6/x/faker";
+
+const faker = new Faker(11);
+
+export default function () {
+  console.log(faker.person.firstName());
+}
+`
+
+	scriptJS = `
+"use k6 with k6/x/faker > 0.4.0";
+
+import faker from "./faker.js";
+
+export default () => {
+  faker();
+};
+`
+)
+
+func Test_AnalyzeFS(t *testing.T) {
+	t.Parallel()
+
+	opts := &k6deps.Options{
+		Script: k6deps.Source{
+			Name: "script.js",
+		},
+		Fs: fstest.MapFS{
+			"script.js": &fstest.MapFile{
+				Data: []byte(scriptJS),
+				Mode: 0o644,
+			},
+			"faker.js": &fstest.MapFile{
+				Data: []byte(fakerJs),
+				Mode: 0o644,
+			},
+		},
+	}
+
+	deps, err := k6deps.Analyze(opts)
+
+	require.NoError(t, err)
+	require.Len(t, deps, 1)
+	require.Equal(t, deps["k6/x/faker"].Constraints.String(), ">0.4.0")
 }
