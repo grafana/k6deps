@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_Analyze(t *testing.T) {
+func TestAnalyzeContents(t *testing.T) {
 	t.Parallel()
 
 	opts := &k6deps.Options{

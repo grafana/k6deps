@@ -10,8 +10,10 @@ import (
 	"github.com/grafana/k6deps/internal/pack"
 )
 
-// EnvDependencies holds the name of the environment variable thet describes additional dependencies.
-const EnvDependencies = "K6_DEPENDENCIES"
+const (
+	// EnvDependencies holds the name of the environment variable that describes additional dependencies.
+	EnvDependencies = "K6_DEPENDENCIES"
+)
 
 // Source describes a generic dependency source.
 // Such a source can be the k6 script, the manifest file, or an environment variable (e.g. K6_DEPENDENCIES).
@@ -19,7 +21,7 @@ type Source struct {
 	// Name contains the name of the source (file, environment variable, etc.).
 	Name string
 	// Reader provides streaming access to the source content as an alternative to Contents.
-	Reader io.Reader
+	Reader io.ReadCloser
 	// Contents contains the content of the source (e.g. script)
 	Contents []byte
 	// Ignore disables automatic search and processing of that source.
@@ -29,33 +31,6 @@ type Source struct {
 // IsEmpty returns true if the source is empty.
 func (s *Source) IsEmpty() bool {
 	return len(s.Contents) == 0 && s.Reader == nil && len(s.Name) == 0
-}
-
-func nopCloser() error {
-	return nil
-}
-
-// contentReader returns a reader for the source content.
-func (s *Source) contentReader() (io.Reader, func() error, error) {
-	if s.Reader != nil {
-		return s.Reader, nopCloser, nil
-	}
-
-	if len(s.Contents) > 0 {
-		return bytes.NewReader(s.Contents), nopCloser, nil
-	}
-
-	fileName, err := filepath.Abs(s.Name)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	file, err := os.Open(filepath.Clean(fileName)) //nolint:forbidigo
-	if err != nil {
-		return nil, nil, err
-	}
-
-	return file, file.Close, nil
 }
 
 // Options contains the parameters of the dependency analysis.
@@ -81,7 +56,7 @@ type Options struct {
 	Env Source
 	// LookupEnv function is used to query the value of the environment variable
 	// specified in the Env option Name if the Contents of the Env option is empty.
-	// If empty, os.LookupEnv will be used.
+	// If not provided, os.LookupEnv will be used.
 	LookupEnv func(key string) (value string, ok bool)
 	// FindManifest function is used to find manifest file for the given script file
 	// if the Contents of Manifest option is empty.
@@ -99,81 +74,81 @@ func (opts *Options) lookupEnv(key string) (string, bool) {
 	return os.LookupEnv(key) //nolint:forbidigo
 }
 
-// loadScript loads a script Source and alls its dependencies into the Script's content
-// from either a file of a reader
-func (opts *Options) loadScript() error {
+// Analyze searches, loads and analyzes the specified sources,
+// extracting the k6 extensions and their version constraints.
+// Note: if archive is specified, the other three sources will not be taken into account,
+// since the archive may contain them.
+func Analyze(opts *Options) (Dependencies, error) {
 	var err error
-	if opts.Script.Ignore || opts.Script.IsEmpty() {
-		return nil
+
+	if !opts.Archive.Ignore && !opts.Archive.IsEmpty() {
+		archiveAnalyzer, err := opts.archiveAnalyzer()
+		if err != nil {
+			return nil, err
+		}
+		return archiveAnalyzer.analyze()
 	}
 
-	if len(opts.Script.Contents) != 0 {
-		return nil
+	manifestAnalyzer, err := opts.manifestAnalyzer()
+	if err != nil {
+		return nil, err
 	}
 
-	source := opts.Script.Reader
-	if source == nil {
-		scriptfile, err := filepath.Abs(opts.Script.Name)
-		if err != nil {
-			return err
-		}
-		source, err = os.Open(scriptfile) //nolint:forbidigo,gosec
-		if err != nil {
-			return err
-		}
+	scriptAnalyzeer, err := opts.scriptAnalyzer()
+	if err != nil {
+		return nil, err
 	}
+
+	return newMergeAnalyzer(scriptAnalyzeer, manifestAnalyzer, opts.envAnalyzer()).analyze()
+}
+
+// scriptAnalyzer loads a script Source and alls its dependencies into the Script's content
+// from either a file of a reader
+func (opts *Options) scriptAnalyzer() (analyzer, error) {
+	source, err := opts.loadSource(&opts.Script)
+	if err != nil {
+		return nil, err
+	}
+	defer source.Close() //nolint:errcheck
 
 	contents := &bytes.Buffer{}
 	_, err = contents.ReadFrom(source)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	script, _, err := pack.Pack(contents.String(), &pack.Options{FS: opts.fs(), Filename: opts.Script.Name})
-
+	script, _, err := pack.Pack(contents.String(), &pack.Options{Filename: opts.Script.Name})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	opts.Script.Contents = script
-
-	return nil
+	return newScriptAnalyzer(io.NopCloser(bytes.NewReader(script))), nil
 }
 
-func loadEnv(opts *Options) {
-	if len(opts.Env.Contents) > 0 || opts.Env.Ignore {
-		return
+func (opts *Options) manifestAnalyzer() (analyzer, error) {
+	if opts.Manifest.IsEmpty() {
+		manifest, found, err := opts.findManifest()
+		if err != nil {
+			return nil, err
+		}
+		if found {
+			opts.Manifest.Name = manifest
+		}
 	}
-
-	key := opts.Env.Name
-	if len(key) == 0 {
-		key = EnvDependencies
-	}
-
-	value, found := opts.lookupEnv(key)
-	if !found || len(value) == 0 {
-		return
-	}
-
-	opts.Env.Name = key
-	opts.Env.Contents = []byte(value)
-}
-
-func (opts *Options) setManifest() error {
-	// if the manifest is not provided, we try to find it
-	// starting from the location of the script
-	path, found, err := findManifest(opts.Script.Name)
+	source, err := opts.loadSource(&opts.Manifest)
 	if err != nil {
-		return err
-	}
-	if found {
-		opts.Manifest.Name = path
+		return nil, err
 	}
 
-	return nil
+	return newManifestAnalyzer(source), nil
 }
 
-func findManifest(filename string) (string, bool, error) {
+func (opts *Options) findManifest() (string, bool, error) {
+	if opts.FindManifest != nil {
+		return opts.FindManifest(opts.Script.Name)
+	}
+
+	filename := opts.Script.Name
 	if len(filename) == 0 {
 		filename = "any_file"
 	}
@@ -195,4 +170,55 @@ func findManifest(filename string) (string, bool, error) {
 	}
 
 	return "", false, nil
+}
+
+func (opts *Options) archiveAnalyzer() (analyzer, error) {
+	source, err := opts.loadSource(&opts.Archive)
+	if err != nil {
+		return nil, err
+	}
+
+	return newArchiveAnalyzer(source), nil
+}
+
+func (opts *Options) loadSource(s *Source) (io.ReadCloser, error) {
+	var err error
+	if s.Ignore || s.IsEmpty() {
+		return io.NopCloser(bytes.NewReader(nil)), nil
+	}
+
+	if len(s.Contents) != 0 {
+		return io.NopCloser(bytes.NewReader(s.Contents)), nil
+	}
+
+	reader := s.Reader
+	if reader == nil {
+		reader, err = os.Open(s.Name) //nolint:forbidigo
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return reader, nil
+}
+
+func (opts *Options) envAnalyzer() analyzer {
+	if opts.Env.Ignore {
+		return newEmptyAnalyzer()
+	}
+
+	if len(opts.Env.Contents) > 0 {
+		content := io.NopCloser(bytes.NewBuffer(opts.Env.Contents))
+		return newTextAnalyzer(content)
+	}
+
+	key := opts.Env.Name
+	if len(key) == 0 {
+		key = EnvDependencies
+	}
+
+	value, _ := opts.lookupEnv(key)
+
+	content := io.NopCloser(bytes.NewBuffer([]byte(value)))
+	return newTextAnalyzer(content)
 }
