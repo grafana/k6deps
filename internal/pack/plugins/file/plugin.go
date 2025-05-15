@@ -3,10 +3,10 @@ package file
 
 import (
 	"io"
-	"io/fs"
 	"path/filepath"
 
 	"github.com/evanw/esbuild/pkg/api"
+	"github.com/grafana/k6deps/pkg/fs"
 )
 
 const (
@@ -21,13 +21,13 @@ var loaderByExtension = map[string]api.Loader{ //nolint:gochecknoglobals
 }
 
 type plugin struct {
-	fs      fs.FS
+	fs      fs.RootFS
 	resolve func(path string, options api.ResolveOptions) api.ResolveResult
 	options *api.BuildOptions
 }
 
 // New creates new http plugin instance.
-func New(fs fs.FS) api.Plugin {
+func New(fs fs.RootFS) api.Plugin {
 	plugin := &plugin{
 		fs: fs,
 	}
@@ -47,7 +47,7 @@ func (plugin *plugin) setup(build api.PluginBuild) {
 }
 
 func (plugin *plugin) load(path string) (*api.OnLoadResult, error) {
-	path, err := filepath.Rel("/", path)
+	path, err := plugin.fs.Rel(path)
 	if err != nil {
 		return nil, err
 	}

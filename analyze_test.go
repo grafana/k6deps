@@ -5,6 +5,7 @@ import (
 	"testing/fstest"
 
 	"github.com/grafana/k6deps"
+	"github.com/grafana/k6deps/pkg/fs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -74,7 +75,7 @@ func Test_AnalyzeFS(t *testing.T) {
 		Script: k6deps.Source{
 			Name: "script.js",
 		},
-		Fs: fstest.MapFS{
+		Fs: fs.NewFromFS(fstest.MapFS{
 			"script.js": &fstest.MapFile{
 				Data: []byte(scriptJS),
 				Mode: 0o644,
@@ -83,7 +84,7 @@ func Test_AnalyzeFS(t *testing.T) {
 				Data: []byte(fakerJs),
 				Mode: 0o644,
 			},
-		},
+		}),
 	}
 
 	deps, err := k6deps.Analyze(opts)
