@@ -1,12 +1,13 @@
 package file_test
 
 import (
-	"io/fs"
+	"path"
 	"testing"
 	"testing/fstest"
 
 	"github.com/evanw/esbuild/pkg/api"
 	"github.com/grafana/k6deps/internal/pack/plugins/file"
+	"github.com/grafana/k6deps/internal/rootfs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,26 +44,26 @@ func Test_plugin_load(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		fs      fs.FS
+		fs      rootfs.FS
 		wantErr bool
 	}{
 		{
 			name: "import relative",
-			fs: fstest.MapFS{
-				"lib/user.ts": &fstest.MapFile{
+			fs: rootfs.NewFromFS(fstest.MapFS{
+				path.Join("lib", "user.ts"): &fstest.MapFile{
 					Data: []byte(userTS),
 					Mode: 0o644,
 				},
-				"lib/account.ts": &fstest.MapFile{
+				path.Join("lib", "account.ts"): &fstest.MapFile{
 					Data: []byte(accountTS),
 					Mode: 0o644,
 				},
-			},
+			}),
 			wantErr: false,
 		},
 		{
 			name:    "not_found",
-			fs:      fstest.MapFS{},
+			fs:      rootfs.NewFromFS(fstest.MapFS{}),
 			wantErr: true,
 		},
 	}
@@ -85,13 +86,14 @@ func Test_plugin_load(t *testing.T) {
 				Bundle: true,
 				Stdin: &api.StdinOptions{
 					Contents:   script,
-					ResolveDir: "/",
-					Sourcefile: "tests/users/main.ts",
+					ResolveDir: path.Join("tests", "users"),
+					Sourcefile: "main.ts",
 					Loader:     api.LoaderTS,
 				},
-				LogLevel: api.LogLevelSilent,
-				Plugins:  []api.Plugin{file.New(tt.fs)},
-				External: []string{"k6"}, // ignore k6 imports
+				LogLevel:      api.LogLevelSilent,
+				Plugins:       []api.Plugin{file.New(tt.fs)},
+				External:      []string{"k6"}, // ignore k6 imports
+				AbsWorkingDir: tt.fs.Root(),
 			})
 
 			if tt.wantErr {

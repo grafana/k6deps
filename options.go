@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/grafana/k6deps/internal/pack"
+	"github.com/grafana/k6deps/internal/rootfs"
 )
 
 const (
@@ -70,12 +71,16 @@ func (opts *Options) lookupEnv(key string) (string, bool) {
 }
 
 // returns the FS to use with this options
-func (opts *Options) fs() fs.FS {
+func (opts *Options) fs() (rootfs.FS, error) {
 	if opts.Fs != nil {
-		return opts.Fs
+		return rootfs.NewFromFS(opts.Fs), nil
 	}
 
-	return os.DirFS(".") //nolint:forbidigo
+	dir, err := os.Getwd() //nolint:forbidigo
+	if err != nil {
+		return nil, err
+	}
+	return rootfs.NewFromDir(dir)
 }
 
 // Analyze searches, loads and analyzes the specified sources,
@@ -121,7 +126,11 @@ func (opts *Options) scriptAnalyzer() (analyzer, error) {
 		return nil, err
 	}
 
-	script, _, err := pack.Pack(contents.String(), &pack.Options{FS: opts.fs(), Filename: opts.Script.Name})
+	fs, err := opts.fs()
+	if err != nil {
+		return nil, err
+	}
+	script, _, err := pack.Pack(contents.String(), &pack.Options{FS: fs, Filename: opts.Script.Name})
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +166,13 @@ func (opts *Options) loadSource(s *Source) (io.ReadCloser, error) {
 		return io.NopCloser(bytes.NewReader(s.Contents)), nil
 	}
 
+	fs, err := opts.fs()
+	if err != nil {
+		return nil, err
+	}
 	reader := s.Reader
 	if reader == nil {
-		reader, err = opts.fs().Open(s.Name)
+		reader, err = fs.Open(s.Name)
 		if err != nil {
 			return nil, err
 		}

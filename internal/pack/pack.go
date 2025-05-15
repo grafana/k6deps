@@ -4,7 +4,6 @@ package pack
 
 import (
 	"encoding/json"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"text/scanner"
@@ -15,6 +14,7 @@ import (
 	"github.com/grafana/k6deps/internal/pack/plugins/file"
 	"github.com/grafana/k6deps/internal/pack/plugins/http"
 	"github.com/grafana/k6deps/internal/pack/plugins/k6"
+	"github.com/grafana/k6deps/internal/rootfs"
 )
 
 // Metadata holds k6 related metadata, emitted under "k6" key of Metafile.
@@ -29,7 +29,7 @@ type packError struct {
 
 // Options used to specify transform/build options.
 type Options struct {
-	FS         fs.FS
+	FS         rootfs.FS
 	Directory  string
 	Filename   string
 	Timeout    time.Duration
@@ -61,39 +61,42 @@ func (o *Options) loaderType() api.Loader {
 	return api.LoaderJS
 }
 
-//nolint:forbidigo
-func (o *Options) fs() fs.FS {
+func (o *Options) fs() (rootfs.FS, error) {
 	if o.FS != nil {
-		return o.FS
+		return o.FS, nil
 	}
 
 	if len(o.Directory) > 0 {
-		return os.DirFS(o.Directory)
+		return rootfs.NewFromDir(o.Directory)
 	}
 
-	wdir, err := os.Getwd()
+	wdir, err := os.Getwd() //nolint:forbidigo
 	if err != nil {
-		// FIXME: add a way to return error
-		panic(err)
+		return nil, err
 	}
-	return os.DirFS(wdir)
+	return rootfs.NewFromDir(wdir)
 }
 
 // Pack gathers dependencies and transforms TypeScript/JavaScript sources into single k6 compatible JavaScript test
 // script.
 func Pack(source string, opts *Options) ([]byte, *Metadata, error) {
+	fs, err := opts.fs()
+	if err != nil {
+		return nil, nil, err
+	}
 	result := api.Build(api.BuildOptions{ //nolint:exhaustruct
-		Stdin:         opts.stdinOptions(source),
-		Bundle:        true,
-		LogLevel:      api.LogLevelSilent,
-		Sourcemap:     api.SourceMapNone,
-		SourceRoot:    opts.SourceRoot,
-		Plugins:       []api.Plugin{http.New(), k6.New(), file.New(opts.fs())},
-		External:      opts.Externals,
-		Metafile:      true,
-		AbsWorkingDir: "/",
+		Stdin:      opts.stdinOptions(source),
+		Bundle:     true,
+		LogLevel:   api.LogLevelSilent,
+		Sourcemap:  api.SourceMapNone,
+		SourceRoot: opts.SourceRoot,
+		Plugins:    []api.Plugin{http.New(), k6.New(), file.New(fs)},
+		External:   opts.Externals,
+		Metafile:   true,
+		// esbuild makes all relative paths in the code absolute by joining this working dir
+		// we must pass this from the fs. Otherwise pack uses the CWD
+		AbsWorkingDir: fs.Root(),
 	})
-
 	if has, err := checkError(&result); has {
 		return nil, nil, err
 	}
