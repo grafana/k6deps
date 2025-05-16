@@ -27,10 +27,10 @@ console.log(user)
 		{
 			title: "k6 imports",
 			script: `
-import "k6"
-import "k6/x/foo?bar"
-import "k6/x/foo#dummy"
-`,
+		import "k6"
+		import "k6/x/foo?bar"
+		import "k6/x/foo#dummy"
+		`,
 			expectError: false,
 			meta:        []string{"k6", "k6/x/foo#dummy", "k6/x/foo?bar"},
 		},
