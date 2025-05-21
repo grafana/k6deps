@@ -1,21 +1,23 @@
 package k6deps
 
 import (
-	"path/filepath"
+	"bytes"
+	"fmt"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func Test_empty(t *testing.T) {
+func TestEmpty(t *testing.T) {
 	t.Parallel()
 
-	inst, err := empty()
+	inst, err := newEmptyAnalyzer().analyze()
 	require.NoError(t, err)
 	require.Empty(t, inst)
 }
 
-func Test_filterInvalid(t *testing.T) {
+func TestFilterInvalid(t *testing.T) {
 	t.Parallel()
 
 	deps := Dependencies{
@@ -36,97 +38,111 @@ func Test_filterInvalid(t *testing.T) {
 	require.Contains(t, valid, "@grafana/xk6-bar")
 }
 
-func Test_manifestAnalyzer(t *testing.T) {
+func TestManifestAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	src := Source{Name: "package.json"}
-	fn := manifestAnalyzer(src)
-	deps, err := fn()
-
+	// test empty manifest
+	src := io.NopCloser(bytes.NewBuffer(nil))
+	deps, err := newManifestAnalyzer(src).analyze()
 	require.NoError(t, err)
 	require.Empty(t, deps)
 
-	src.Contents = []byte(`{"dependencies":{"@grafana/xk6-faker":"*"}}`)
-	fn = manifestAnalyzer(src)
-	deps, err = fn()
-
+	// test manifest
+	content := []byte(`{"dependencies":{"@grafana/xk6-faker":"*"}}`)
+	src = io.NopCloser(bytes.NewBuffer(content))
+	deps, err = newManifestAnalyzer(src).analyze()
 	require.NoError(t, err)
 	require.NotEmpty(t, deps)
 	require.Len(t, deps, 1)
 	require.Equal(t, deps["@grafana/xk6-faker"].Constraints.String(), "*")
 
-	src.Contents = []byte(`{`)
-	fn = manifestAnalyzer(src)
-	_, err = fn()
+	// test invalid manifest
+	content = []byte(`{`)
+	src = io.NopCloser(bytes.NewBuffer(content))
+	deps, err = newManifestAnalyzer(src).analyze()
 	require.Error(t, err)
+	require.Len(t, deps, 0)
 }
 
-func Test_scriptAnalyzer(t *testing.T) {
+func TestScriptAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	src := Source{Name: filepath.Join(t.TempDir(), "script.js")}
-	fn := scriptAnalyzer(src)
-	deps, err := fn()
-
-	require.Error(t, err)
-	require.Empty(t, deps)
-
-	src.Contents = []byte(`"use k6 with @grafana/xk6-faker>v0.3.0";`)
-	fn = scriptAnalyzer(src)
-	deps, err = fn()
-
+	// test scanning script
+	content := []byte(`"use k6 with @grafana/xk6-faker>v0.3.0";`)
+	src := io.NopCloser(bytes.NewBuffer(content))
+	deps, err := newScriptAnalyzer(src).analyze()
 	require.NoError(t, err)
 	require.NotEmpty(t, deps)
 	require.Len(t, deps, 1)
 	require.Equal(t, deps["@grafana/xk6-faker"].Constraints.String(), ">v0.3.0")
 
-	src.Contents = []byte(`"use k6 with k6/x/faker>>1.0";`)
-	fn = scriptAnalyzer(src)
-	_, err = fn()
+	// test invalid pragmas
+	content = []byte(`"use k6 with k6/x/faker>>1.0";`)
+	src = io.NopCloser(bytes.NewBuffer(content))
+	deps, err = newScriptAnalyzer(src).analyze()
 	require.Error(t, err)
+	require.Empty(t, deps)
 }
 
-func Test_envAnalyzer(t *testing.T) {
+func TestTextAnalyzer(t *testing.T) {
 	t.Parallel()
 
-	src := Source{Name: "DEPS"}
-	fn := envAnalyzer(src)
-	deps, err := fn()
-
+	// test empty text source
+	content := []byte{}
+	src := io.NopCloser(bytes.NewBuffer(content))
+	deps, err := newTextAnalyzer(src).analyze()
 	require.NoError(t, err)
 	require.Empty(t, deps)
 
-	src.Contents = []byte(`@grafana/xk6-faker>v0.3.0`)
-	fn = envAnalyzer(src)
-	deps, err = fn()
-
+	// test text source
+	content = []byte(`@grafana/xk6-faker>v0.3.0`)
+	src = io.NopCloser(bytes.NewBuffer(content))
+	deps, err = newTextAnalyzer(src).analyze()
+	require.NoError(t, err)
 	require.NoError(t, err)
 	require.NotEmpty(t, deps)
 	require.Len(t, deps, 1)
 	require.Equal(t, deps["@grafana/xk6-faker"].Constraints.String(), ">v0.3.0")
 
-	src.Contents = []byte(`k6/x/faker>>1.0`)
-	fn = envAnalyzer(src)
-	_, err = fn()
+	// test invalid text source
+	content = []byte(`k6/x/faker>>1.0`)
+	src = io.NopCloser(bytes.NewBuffer(content))
+	deps, err = newTextAnalyzer(src).analyze()
 	require.Error(t, err)
+	require.Empty(t, deps)
 }
 
-func Test_mergeAnalyzers_error(t *testing.T) {
+type mockAnalyzer struct {
+	deps Dependencies
+	err  error
+}
+
+func newMockAnalyzer(deps Dependencies, err error) analyzer {
+	return &mockAnalyzer{deps: deps, err: err}
+}
+
+func (m *mockAnalyzer) analyze() (Dependencies, error) {
+	return m.deps, m.err
+}
+
+func TestMergeAnalyzers(t *testing.T) {
 	t.Parallel()
 
-	src := Source{Name: "DEPS"}
-	src.Contents = []byte(`@grafana/xk6-faker>v0.3.0`)
-	fn := envAnalyzer(src)
+	deps, err := newMergeAnalyzer(
+		newMockAnalyzer(Dependencies{"xk6-foo": &Dependency{Name: "xk6-foo"}}, nil),
+		newMockAnalyzer(Dependencies{"xk6-bar": &Dependency{Name: "xk6-bar"}}, nil),
+	).analyze()
 
-	src.Contents = []byte(`@grafana/xk6-foo>>v0.4.0`)
-	fn2 := envAnalyzer(src)
+	require.NoError(t, err)
+	require.Equal(t, len(deps), 2)
+	require.Equal(t, deps["xk6-foo"].Name, "xk6-foo")
+	require.Equal(t, deps["xk6-bar"].Name, "xk6-bar")
 
-	_, err := mergeAnalyzers(fn, fn2)()
+	deps, err = newMergeAnalyzer(
+		newMockAnalyzer(Dependencies{"xk6-foo": &Dependency{Name: "xk6-foo"}}, nil),
+		newMockAnalyzer(Dependencies{"xk6-bar": &Dependency{Name: "xk6-bar"}}, fmt.Errorf("test error")),
+	).analyze()
+
 	require.Error(t, err)
-
-	src.Contents = []byte(`@grafana/xk6-faker>v0.4.0`)
-	fn2 = envAnalyzer(src)
-
-	_, err = mergeAnalyzers(fn, fn2)()
-	require.Error(t, err)
+	require.Empty(t, deps)
 }

@@ -121,6 +121,15 @@ func deps(opts *options, args []string) error {
 		out = file
 	}
 
+	// if manifest is not defined, look for it besides the script
+	if len(opts.Options.Manifest.Name) == 0 && !opts.Options.Manifest.Ignore {
+		manifest := filepath.Join(filepath.Dir(opts.Options.Script.Name), "package.json")
+		_, err := os.Stat(manifest) //nolint:forbidigo
+		if err == nil {
+			opts.Options.Manifest.Name = manifest
+		}
+	}
+
 	deps, err := k6deps.Analyze(&opts.Options)
 	if err != nil {
 		return err
