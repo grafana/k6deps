@@ -3,8 +3,9 @@ package k6deps
 import (
 	"bytes"
 	"io"
-	"io/fs"
 	"os"
+
+	"github.com/spf13/afero"
 
 	"github.com/grafana/k6deps/internal/pack"
 	"github.com/grafana/k6deps/internal/rootfs"
@@ -59,7 +60,9 @@ type Options struct {
 	// If not provided, os.LookupEnv will be used.
 	LookupEnv func(key string) (value string, ok bool)
 	// Fs is the file system to use for accessing files. If not provided, os file system is used
-	Fs fs.FS
+	Fs afero.Fs
+	// Root directory for searching for files. Must an absolute path. If omitted, CWD is used
+	RootDir string
 }
 
 func (opts *Options) lookupEnv(key string) (string, bool) {
@@ -72,15 +75,21 @@ func (opts *Options) lookupEnv(key string) (string, bool) {
 
 // returns the FS to use with this options
 func (opts *Options) fs() (rootfs.FS, error) {
-	if opts.Fs != nil {
-		return rootfs.NewFromFS(opts.Fs), nil
+	var err error
+
+	dir := opts.RootDir
+	if dir == "" {
+		dir, err = os.Getwd() //nolint:forbidigo
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	dir, err := os.Getwd() //nolint:forbidigo
-	if err != nil {
-		return nil, err
+	if opts.Fs == nil {
+		return rootfs.NewFromDir(dir)
 	}
-	return rootfs.NewFromDir(dir)
+
+	return rootfs.NewFromFS(dir, opts.Fs), nil
 }
 
 // Analyze searches, loads and analyzes the specified sources,

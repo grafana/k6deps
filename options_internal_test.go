@@ -39,6 +39,16 @@ func TestOptionsScriptAnalyzer(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, deps)
 
+	// load script with includes
+	opts = new(Options)
+	opts.Script.Name = filepath.Join("testdata", "combined.js")
+	opts.Script.Ignore = false
+	scriptAnalyzer, err = opts.scriptAnalyzer()
+	require.NoError(t, err)
+	deps, err = scriptAnalyzer.analyze()
+	require.NoError(t, err)
+	require.NotNil(t, deps)
+
 	// load bad script
 	opts = new(Options)
 	opts.Script.Name = filepath.Join("testdata", "bad.js")

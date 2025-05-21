@@ -47,11 +47,6 @@ func (plugin *plugin) setup(build api.PluginBuild) {
 }
 
 func (plugin *plugin) load(path string) (*api.OnLoadResult, error) {
-	path, err := plugin.fs.Rel(path)
-	if err != nil {
-		return nil, err
-	}
-
 	file, err := plugin.fs.Open(path)
 	if err != nil {
 		return nil, err

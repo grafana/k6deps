@@ -74,6 +74,7 @@ func (o *Options) fs() (rootfs.FS, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return rootfs.NewFromDir(wdir)
 }
 
@@ -84,6 +85,7 @@ func Pack(source string, opts *Options) ([]byte, *Metadata, error) {
 	if err != nil {
 		return nil, nil, err
 	}
+
 	result := api.Build(api.BuildOptions{ //nolint:exhaustruct
 		Stdin:      opts.stdinOptions(source),
 		Bundle:     true,

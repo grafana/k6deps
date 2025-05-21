@@ -16,19 +16,9 @@ func Test_analyzeArchive(t *testing.T) {
 	}
 
 	actual, err := Analyze(opts)
-
 	require.NoError(t, err)
-
-	opts = &Options{
-		Script:   Source{Name: filepath.Join("testdata", "combined.js")},
-		Manifest: Source{Ignore: true},
-		Env:      Source{Ignore: true},
-	}
-
-	expected, err := Analyze(opts)
-
-	require.NoError(t, err)
-
+	expected := &Dependencies{}
+	_ = expected.UnmarshalText([]byte(`k6>0.54;k6/x/faker>0.4.0;k6/x/sql>=1.0.1;k6/x/sql/driver/ramsql*`))
 	require.Equal(t, expected.String(), actual.String())
 }
 
