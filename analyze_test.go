@@ -1,10 +1,12 @@
 package k6deps_test
 
 import (
+	"path/filepath"
 	"testing"
-	"testing/fstest"
 
 	"github.com/grafana/k6deps"
+	"github.com/grafana/k6deps/internal/testutils"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,18 +74,13 @@ func Test_AnalyzeFS(t *testing.T) {
 
 	opts := &k6deps.Options{
 		Script: k6deps.Source{
-			Name: "script.js",
+			Name: filepath.FromSlash("script.js"),
 		},
-		Fs: fstest.MapFS{
-			"script.js": &fstest.MapFile{
-				Data: []byte(scriptJS),
-				Mode: 0o644,
-			},
-			"faker.js": &fstest.MapFile{
-				Data: []byte(fakerJs),
-				Mode: 0o644,
-			},
-		},
+		Fs: testutils.MapFS(t, testutils.OSRoot(), testutils.Filemap{
+			filepath.FromSlash("script.js"): []byte(scriptJS),
+			filepath.FromSlash("faker.js"):  []byte(fakerJs),
+		}),
+		RootDir: testutils.OSRoot(),
 	}
 
 	deps, err := k6deps.Analyze(opts)

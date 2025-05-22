@@ -37,9 +37,10 @@ const (
 
 type options struct {
 	k6deps.Options
-	input  string
-	format format
-	output string
+	input   string
+	format  format
+	output  string
+	workDir string
 }
 
 //go:embed help.md
@@ -72,11 +73,17 @@ func New() *cobra.Command {
 	flags.BoolVar(&opts.Manifest.Ignore, "ignore-manifest", false, "disable package.json detection and processing")
 	flags.BoolVar(&opts.Script.Ignore, "ignore-script", false, "disable script processing")
 	flags.StringVarP(&opts.input, "input", "i", "", "input format ('js', 'ts' or 'tar' for archives)")
+	flags.StringVarP(&opts.workDir, "work-dir", "d", "", "work directory. Defaults to current directory."+
+		"\nAll files processed by k6deps must be under this directory.")
 	return cmd
 }
 
+//nolint:forbidigo
 func deps(opts *options, args []string) error {
-	var ignoreStdin bool
+	var (
+		err         error
+		ignoreStdin bool
+	)
 
 	if len(args) > 0 {
 		filename := args[0]
@@ -95,12 +102,12 @@ func deps(opts *options, args []string) error {
 		switch opts.input {
 		case "js", "ts":
 			buffer := &bytes.Buffer{}
-			buffer.ReadFrom(os.Stdin) //nolint:errcheck,forbidigo,gosec
+			buffer.ReadFrom(os.Stdin) //nolint:errcheck,gosec
 			opts.Script.Name = "stdin"
 			opts.Script.Contents = buffer.Bytes()
 		case "tar":
 			opts.Archive.Name = "stdin"
-			opts.Archive.Reader = os.Stdin //nolint:forbidigo
+			opts.Archive.Reader = os.Stdin
 		default:
 			return fmt.Errorf("unsupported input format: %s", opts.input)
 		}
@@ -109,9 +116,9 @@ func deps(opts *options, args []string) error {
 	var out io.Writer
 
 	if len(opts.output) == 0 {
-		out = os.Stdout //nolint:forbidigo
+		out = os.Stdout
 	} else {
-		file, err := os.Create(filepath.Clean(opts.output)) //nolint:forbidigo
+		file, err := os.Create(filepath.Clean(opts.output))
 		if err != nil {
 			return err
 		}
@@ -121,10 +128,21 @@ func deps(opts *options, args []string) error {
 		out = file
 	}
 
+	if len(opts.workDir) == 0 {
+		opts.workDir, err = os.Getwd()
+		if err != nil {
+			return err
+		}
+	}
+	opts.Options.RootDir = opts.workDir
+
 	// if manifest is not defined, look for it besides the script
 	if len(opts.Options.Manifest.Name) == 0 && !opts.Options.Manifest.Ignore {
 		manifest := filepath.Join(filepath.Dir(opts.Options.Script.Name), "package.json")
-		_, err := os.Stat(manifest) //nolint:forbidigo
+		if !filepath.IsAbs(manifest) {
+			manifest = filepath.Join(opts.workDir, manifest)
+		}
+		_, err := os.Stat(manifest)
 		if err == nil {
 			opts.Options.Manifest.Name = manifest
 		}

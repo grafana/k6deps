@@ -3,11 +3,15 @@ package file_test
 import (
 	"path"
 	"testing"
-	"testing/fstest"
 
 	"github.com/evanw/esbuild/pkg/api"
+
+	"github.com/spf13/afero"
+
 	"github.com/grafana/k6deps/internal/pack/plugins/file"
 	"github.com/grafana/k6deps/internal/rootfs"
+	"github.com/grafana/k6deps/internal/testutils"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -49,21 +53,15 @@ func Test_plugin_load(t *testing.T) {
 	}{
 		{
 			name: "import relative",
-			fs: rootfs.NewFromFS(fstest.MapFS{
-				path.Join("lib", "user.ts"): &fstest.MapFile{
-					Data: []byte(userTS),
-					Mode: 0o644,
-				},
-				path.Join("lib", "account.ts"): &fstest.MapFile{
-					Data: []byte(accountTS),
-					Mode: 0o644,
-				},
-			}),
+			fs: rootfs.NewFromFS(testutils.OSRoot(), testutils.MapFS(t, testutils.OSRoot(), testutils.Filemap{
+				path.Join("lib", "user.ts"):    []byte(userTS),
+				path.Join("lib", "account.ts"): []byte(accountTS),
+			})),
 			wantErr: false,
 		},
 		{
 			name:    "not_found",
-			fs:      rootfs.NewFromFS(fstest.MapFS{}),
+			fs:      rootfs.NewFromFS(testutils.OSRoot(), afero.NewMemMapFs()),
 			wantErr: true,
 		},
 	}
@@ -93,7 +91,7 @@ func Test_plugin_load(t *testing.T) {
 				LogLevel:      api.LogLevelSilent,
 				Plugins:       []api.Plugin{file.New(tt.fs)},
 				External:      []string{"k6"}, // ignore k6 imports
-				AbsWorkingDir: tt.fs.Root(),
+				AbsWorkingDir: testutils.OSRoot(),
 			})
 
 			if tt.wantErr {
