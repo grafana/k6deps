@@ -18,7 +18,7 @@ type FS interface {
 	// Opens a File given its path. Path can be absolute or relative.
 	// If path is relative, it is joined to the root to get the effective path.
 	// The path must be  within the FS's root directory
-	Open(path string) (afero.File, error)
+	Open(path string) (fs.File, error)
 	// returns FS's root dir
 	Root() string
 }
@@ -44,7 +44,7 @@ func (f *rootFS) Root() string {
 	return f.root
 }
 
-func (f *rootFS) Open(path string) (afero.File, error) {
+func (f *rootFS) Open(path string) (fs.File, error) {
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(f.root, path)
 	}
