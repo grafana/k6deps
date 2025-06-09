@@ -1,7 +1,6 @@
 package k6deps_test
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/grafana/k6deps"
@@ -74,11 +73,11 @@ func Test_AnalyzeFS(t *testing.T) {
 
 	opts := &k6deps.Options{
 		Script: k6deps.Source{
-			Name: filepath.FromSlash("script.js"),
+			Name: "script.js",
 		},
-		Fs: testutils.MapFS(t, testutils.OSRoot(), testutils.Filemap{
-			filepath.FromSlash("script.js"): []byte(scriptJS),
-			filepath.FromSlash("faker.js"):  []byte(fakerJs),
+		Fs: testutils.NewMapFS(t, testutils.OSRoot(), testutils.Filemap{
+			"script.js": []byte(scriptJS),
+			"faker.js":  []byte(fakerJs),
 		}),
 		RootDir: testutils.OSRoot(),
 	}
