@@ -2,7 +2,6 @@ package k6deps
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"testing"
 
@@ -108,41 +107,6 @@ func TestTextAnalyzer(t *testing.T) {
 	content = []byte(`k6/x/faker>>1.0`)
 	src = io.NopCloser(bytes.NewBuffer(content))
 	deps, err = newTextAnalyzer(src).analyze()
-	require.Error(t, err)
-	require.Empty(t, deps)
-}
-
-type mockAnalyzer struct {
-	deps Dependencies
-	err  error
-}
-
-func newMockAnalyzer(deps Dependencies, err error) analyzer {
-	return &mockAnalyzer{deps: deps, err: err}
-}
-
-func (m *mockAnalyzer) analyze() (Dependencies, error) {
-	return m.deps, m.err
-}
-
-func TestMergeAnalyzers(t *testing.T) {
-	t.Parallel()
-
-	deps, err := newMergeAnalyzer(
-		newMockAnalyzer(Dependencies{"xk6-foo": &Dependency{Name: "xk6-foo"}}, nil),
-		newMockAnalyzer(Dependencies{"xk6-bar": &Dependency{Name: "xk6-bar"}}, nil),
-	).analyze()
-
-	require.NoError(t, err)
-	require.Equal(t, len(deps), 2)
-	require.Equal(t, deps["xk6-foo"].Name, "xk6-foo")
-	require.Equal(t, deps["xk6-bar"].Name, "xk6-bar")
-
-	deps, err = newMergeAnalyzer(
-		newMockAnalyzer(Dependencies{"xk6-foo": &Dependency{Name: "xk6-foo"}}, nil),
-		newMockAnalyzer(Dependencies{"xk6-bar": &Dependency{Name: "xk6-bar"}}, fmt.Errorf("test error")),
-	).analyze()
-
 	require.Error(t, err)
 	require.Empty(t, deps)
 }

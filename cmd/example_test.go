@@ -7,5 +7,5 @@ func ExampleNew() {
 	c.SetArgs([]string{"testdata/combined.js"})
 	_ = c.Execute()
 	// Output:
-	// {"k6":">0.54","k6/x/faker":">0.4.0","k6/x/sql":">=1.0.1","k6/x/sql/driver/ramsql":"*","xk6-toml":">2.0"}
+	// {"k6":">0.54","k6/x/faker":">0.4.0","k6/x/sql":">=1.0.1","k6/x/sql/driver/ramsql":"*"}
 }
