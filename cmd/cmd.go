@@ -71,7 +71,6 @@ func New() *cobra.Command {
 	flags.BoolVar(&opts.Env.Ignore, "ingnore-env", false,
 		"ignore "+k6deps.EnvDependencies+" environment variable processing")
 	flags.BoolVar(&opts.Manifest.Ignore, "ignore-manifest", false, "disable package.json detection and processing")
-	flags.BoolVar(&opts.Script.Ignore, "ignore-script", false, "disable script processing")
 	flags.StringVarP(&opts.input, "input", "i", "", "input format ('js', 'ts' or 'tar' for archives)")
 	flags.StringVarP(&opts.workDir, "work-dir", "d", "", "work directory. Defaults to current directory."+
 		"\nAll files processed by k6deps must be under this directory.")

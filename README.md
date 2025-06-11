@@ -194,7 +194,6 @@ k6deps [flags] [script-file]
       --format json|text|js   output format, possible values: json,env,script (default json)
   -h, --help                  help for k6deps
       --ignore-manifest       disable package.json detection and processing
-      --ignore-script         disable script processing
       --ingnore-env           ignore K6_DEPENDENCIES environment variable processing
   -i, --input string          input format ('js', 'ts' or 'tar' for archives)
       --manifest string       manifest file to analyze (default 'package.json' nearest to script-file)
