@@ -39,7 +39,7 @@ func Test_Root(t *testing.T) {
 			name:     "script and maifest default format",
 			args:     []string{"--ingnore-env"},
 			source:   scriptfile,
-			expected: `{"k6/x/faker":">v0.3.0","xk6-toml":">2.0","xk6-top":"*"}` + "\n",
+			expected: `{"k6/x/faker":">v0.3.0","xk6-top":">2.0"}` + "\n",
 		},
 		{
 			name:     "script json format",

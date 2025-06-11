@@ -9,11 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//nolint:gochecknoglobals
-var (
-	appname = "k6deps"
-	version = "dev"
-)
+var version = "dev"
 
 func main() {
 	runCmd(newCmd(os.Args[1:])) //nolint:forbidigo
