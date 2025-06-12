@@ -58,7 +58,7 @@ func TestRootFSOpen(t *testing.T) {
 		{
 			title:  "invalid navigation",
 			path:   filepath.Join("..", "scape", "to", "other", "file"),
-			expect: fs.ErrNotExist,
+			expect: fs.ErrInvalid,
 		},
 	}
 
