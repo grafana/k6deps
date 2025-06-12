@@ -2,7 +2,13 @@ version: 2
 updates:
   - package-ecosystem: "gomod"
     directory: "/"
-    schedule:
+    -ignore:
+     - dependency-name: github.com/spf13/afero
+     - dependency-name: github.com/spf13/cobra
+     - dependency-name: github.com/evanw/esbuild
+     - dependency-name: github.com/spf13/pflag
+     - dependency-name: github.com/Masterminds/semver/v3
+  - schedule:
       interval: "weekly"
       day: "sunday"
       time: "16:00"
