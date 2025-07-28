@@ -108,7 +108,7 @@ func Test_deps_stdout(t *testing.T) {
 	contents, err := os.ReadFile(out)
 
 	require.NoError(t, err)
-	require.Equal(t, `k6/x/faker>v0.3.0;xk6-top*`+"\n", string(contents))
+	require.Equal(t, `k6*;k6/x/faker>v0.3.0;xk6-top*`+"\n", string(contents))
 }
 
 func Test_deps_invalid_output(t *testing.T) {

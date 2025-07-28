@@ -31,6 +31,6 @@ func ExampleAnalyze_without_pragma() {
 	out, _ := deps.MarshalJSON()
 	fmt.Println(string(out))
 	// Output:
-	// k6/x/faker*;k6/x/sql*;k6/x/sql/driver/ramsql*
-	// {"k6/x/faker":"*","k6/x/sql":"*","k6/x/sql/driver/ramsql":"*"}
+	// k6*;k6/x/faker*;k6/x/sql*;k6/x/sql/driver/ramsql*
+	// {"k6":"*","k6/x/faker":"*","k6/x/sql":"*","k6/x/sql/driver/ramsql":"*"}
 }
