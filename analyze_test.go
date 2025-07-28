@@ -30,7 +30,7 @@ func TestAnalyzeContents(t *testing.T) {
 	deps, err := k6deps.Analyze(opts)
 
 	require.NoError(t, err)
-	require.Len(t, deps, 1)
+	require.Len(t, deps, 2)
 	require.Equal(t, deps["k6/x/bar"].Constraints.String(), ">=2.0")
 
 	opts.Script.Contents = nil
@@ -83,6 +83,6 @@ func Test_AnalyzeFS(t *testing.T) {
 	deps, err := k6deps.Analyze(opts)
 
 	require.NoError(t, err)
-	require.Len(t, deps, 1)
+	require.Len(t, deps, 2)
 	require.Equal(t, deps["k6/x/faker"].Constraints.String(), ">0.4.0")
 }
