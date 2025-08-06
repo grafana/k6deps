@@ -5,9 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
-	"path"
 	"path/filepath"
+	"strings"
+
+	"github.com/spf13/afero"
 )
 
 var ErrInvalidPath = errors.New("invalid path") //nolint:revive
@@ -23,7 +24,7 @@ type FS interface {
 }
 
 type rootFS struct {
-	fs   fs.FS
+	afero.Fs
 	root string
 }
 
@@ -34,7 +35,7 @@ func NewFromDir(root string) (FS, error) {
 	}
 
 	return &rootFS{
-		fs:   os.DirFS(root), //nolint:forbidigo
+		Fs:   afero.NewOsFs(),
 		root: root,
 	}, nil
 }
@@ -43,19 +44,19 @@ func (f *rootFS) Root() string {
 	return f.root
 }
 
-func (f *rootFS) Open(filePath string) (fs.File, error) {
-	var err error
-	if filepath.IsAbs(filePath) {
-		filePath, err = filepath.Rel(f.root, filePath)
-		if err != nil {
-			return nil, err
-		}
+func (f *rootFS) Open(path string) (fs.File, error) {
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(f.root, path)
+	}
+	// check if the path is outside the root
+	if !strings.HasPrefix(path, f.root) {
+		return nil, &fs.PathError{Path: path, Err: fs.ErrNotExist}
 	}
 
-	return f.fs.Open(filepath.ToSlash(path.Clean(filePath)))
+	return f.Fs.Open(filepath.Clean(path))
 }
 
 // NewFromFS return a FS from a FS
-func NewFromFS(root string, fs fs.FS) FS {
-	return &rootFS{root: root, fs: fs}
+func NewFromFS(root string, fs afero.Fs) FS {
+	return &rootFS{root: root, Fs: fs}
 }

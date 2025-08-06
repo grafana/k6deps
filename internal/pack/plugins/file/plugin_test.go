@@ -6,6 +6,8 @@ import (
 
 	"github.com/evanw/esbuild/pkg/api"
 
+	"github.com/spf13/afero"
+
 	"github.com/grafana/k6deps/internal/pack/plugins/file"
 	"github.com/grafana/k6deps/internal/rootfs"
 	"github.com/grafana/k6deps/internal/testutils"
@@ -51,15 +53,15 @@ func Test_plugin_load(t *testing.T) {
 	}{
 		{
 			name: "import relative",
-			fs: testutils.NewMapFS(t, testutils.OSRoot(), testutils.Filemap{
+			fs: rootfs.NewFromFS(testutils.OSRoot(), testutils.MapFS(t, testutils.OSRoot(), testutils.Filemap{
 				path.Join("lib", "user.ts"):    []byte(userTS),
 				path.Join("lib", "account.ts"): []byte(accountTS),
-			}),
+			})),
 			wantErr: false,
 		},
 		{
 			name:    "not_found",
-			fs:      testutils.NewMapFS(t, testutils.OSRoot(), testutils.Filemap{}),
+			fs:      rootfs.NewFromFS(testutils.OSRoot(), afero.NewMemMapFs()),
 			wantErr: true,
 		},
 	}

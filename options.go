@@ -3,8 +3,9 @@ package k6deps
 import (
 	"bytes"
 	"io"
-	"io/fs"
 	"os"
+
+	"github.com/spf13/afero"
 
 	"github.com/grafana/k6deps/internal/pack"
 	"github.com/grafana/k6deps/internal/rootfs"
@@ -59,7 +60,7 @@ type Options struct {
 	// If not provided, os.LookupEnv will be used.
 	LookupEnv func(key string) (value string, ok bool)
 	// Fs is the file system to use for accessing files. If not provided, os file system is used
-	Fs fs.FS
+	Fs afero.Fs
 	// Root directory for searching for files. Must an absolute path. If omitted, CWD is used
 	RootDir string
 }
