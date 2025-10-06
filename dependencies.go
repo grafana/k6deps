@@ -292,6 +292,9 @@ func (deps Dependencies) marshalJS(w io.Writer) error {
 func (deps *Dependencies) UnmarshalJS(text []byte) error {
 	*deps = make(Dependencies)
 
+	// normalize end of line sequence to linux style
+	text = bytes.ReplaceAll(text, []byte("\r\n"), []byte("\n")) // windows
+
 	// clean multiline comments
 	clean := reMultiLineComment.ReplaceAll(text, []byte(""))
 
