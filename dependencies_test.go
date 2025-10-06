@@ -1,6 +1,7 @@
 package k6deps_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/grafana/k6deps"
@@ -237,4 +238,29 @@ export default function () {
 
 	require.Len(t, deps, 1)
 	require.Equal(t, "k6*", deps["k6"].String())
+}
+
+func Test_Dependencies_UnmarshalJS_Windows_script(t *testing.T) {
+	t.Parallel()
+
+	deps := make(k6deps.Dependencies)
+
+	// construct a script joining the lines with windows style line ends
+	script := strings.Join([]string{
+		"import exec from 'k6/x/exec';",
+		"import faker from 'k6/x/faker'",
+		"import 'k6/x/sql';",
+		"",
+		"export default function () {",
+		"  console.log(exec.command(\"date\"));",
+		"}",
+	}, "\r\n")
+
+	err := deps.UnmarshalJS([]byte(script))
+	require.NoError(t, err)
+
+	require.Len(t, deps, 3)
+	require.Equal(t, "k6/x/exec*", deps["k6/x/exec"].String())
+	require.Equal(t, "k6/x/faker*", deps["k6/x/faker"].String())
+	require.Equal(t, "k6/x/sql*", deps["k6/x/sql"].String())
 }
