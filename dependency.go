@@ -22,7 +22,7 @@ const (
 
 //nolint:gochecknoglobals
 var (
-	ErrConstraints = errors.New("constraints error")
+	ErrConstraints = errors.New("constraints error") //nolint:revive
 	ErrDependency  = errors.New("dependency error")
 
 	defaultConstraints, _ = semver.NewConstraint(defaultConstraintsString)
