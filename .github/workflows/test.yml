@@ -45,7 +45,7 @@ jobs:
         run: go test -count 1 -coverprofile=coverage.txt ./...
       - name: Upload Coverage
         if: ${{ matrix.platform == 'ubuntu-latest' && github.ref_name == 'main' }}
-        uses: codecov/codecov-action@fdcc8476540edceab3de004e990f80d881c6cc00 #v5.5.0
+        uses: codecov/codecov-action@75cd11691c0faa626561e295848008c8a7dddffe # v5.5.4
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           slug: grafana/k6deps
