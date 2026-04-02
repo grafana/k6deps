@@ -3,7 +3,7 @@ module github.com/grafana/k6deps
 go 1.24.0
 
 require (
-	github.com/Masterminds/semver/v3 v3.3.1
+	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/evanw/esbuild v0.27.4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
